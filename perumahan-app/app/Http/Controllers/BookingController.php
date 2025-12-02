@@ -4,62 +4,87 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class BookingController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    // ===========================================================
+    // CUSTOMER - LIHAT BOOKING SENDIRI
+    // ===========================================================
+    public function indexCustomer()
     {
-        //
+        $bookings = Booking::where('user_id', Auth::id())
+                            ->latest()
+                            ->get();
+
+        return view('booking.customer.index', compact('bookings'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
+    // ===========================================================
+    // CUSTOMER - FORM BOOKING
+    // ===========================================================
     public function create()
     {
-        //
+        return view('booking.customer.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
+    // ===========================================================
+    // CUSTOMER - SIMPAN BOOKING
+    // ===========================================================
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'project_id' => 'required',
+            'unit_id' => 'required',
+            'tanggal_booking' => 'required|date',
+        ]);
+
+        Booking::create([
+            'user_id' => Auth::id(),
+            'project_id' => $request->project_id,
+            'unit_id' => $request->unit_id,
+            'tanggal_booking' => $request->tanggal_booking,
+            'status' => 'pending',
+        ]);
+
+        return redirect()->route('customer.booking.index')
+            ->with('success', 'Booking berhasil dibuat!');
     }
 
-    /**
-     * Display the specified resource.
-     */
+    // ===========================================================
+    // ADMIN - LIHAT SEMUA BOOKING
+    // ===========================================================
+    public function indexAdmin()
+    {
+        $bookings = Booking::with('user')
+                            ->latest()
+                            ->get();
+
+        return view('booking.admin.index', compact('bookings'));
+    }
+
+    // ===========================================================
+    // ADMIN - DETAIL BOOKING
+    // ===========================================================
     public function show(Booking $booking)
     {
-        //
+        return view('booking.admin.show', compact('booking'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Booking $booking)
+    // ===========================================================
+    // ADMIN - UPDATE STATUS BOOKING
+    // ===========================================================
+    public function updateStatus(Request $request, Booking $booking)
     {
-        //
-    }
+        $request->validate([
+            'status' => 'required|in:pending,disetujui,ditolak',
+        ]);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Booking $booking)
-    {
-        //
-    }
+        $booking->update([
+            'status' => $request->status
+        ]);
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Booking $booking)
-    {
-        //
+        return redirect()->route('admin.booking.index')
+            ->with('success', 'Status booking berhasil diperbarui!');
     }
 }

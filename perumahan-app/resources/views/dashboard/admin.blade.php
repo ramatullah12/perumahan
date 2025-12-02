@@ -95,7 +95,7 @@
 
         <div class="d-flex align-items-center">
             <a class="menu-item active" href="#">Dashboard</a>
-            <a class="menu-item" href="#">Booking management</a>
+            <a class="menu-item {{ request()->is('admin/booking') ? 'active' : '' }}" href="/admin/booking">Booking management</a>
             <a class="menu-item" href="#">Manajemen Proyek</a>
             <a class="menu-item" href="#">Manajemen Tipe Rumah</a>
             <a class="menu-item" href="#">Manajemen Unit</a>
@@ -104,6 +104,8 @@
         </div>
     </div>
 
-    
+    <div class="container mt-4">
+        @yield('content')
+    </div>
 
 </x-app-layout>

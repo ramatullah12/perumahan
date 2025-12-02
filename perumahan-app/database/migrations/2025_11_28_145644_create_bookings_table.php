@@ -13,6 +13,17 @@ return new class extends Migration
     {
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // relasi ke user
+
+            $table->string('nama');
+            $table->string('alamat');
+            $table->string('telepon');
+            $table->string('tipe_rumah');
+            $table->integer('harga');
+            $table->text('catatan')->nullable();
+
+            $table->string('status')->default('pending'); // pending, disetujui, ditolak
+
             $table->timestamps();
         });
     }
