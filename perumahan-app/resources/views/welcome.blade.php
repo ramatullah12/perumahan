@@ -146,7 +146,7 @@
 <nav class="navbar navbar-expand-lg navbar-custom">
     <div class="container">
         <a class="navbar-brand d-flex align-items-center gap-2">
-            <img src="images/lo.jpg">
+            <img src="{{ asset('images/logo.jpg') }}">
         </a>
         <a class="navbar-brand d-flex align-items-center gap-2 mx-auto">
             <span class="fw-bold text-primary">PT Kedaton Sejahtera Abadi</span>
@@ -263,6 +263,41 @@
         </div>
 
     </div>
+<div class="container mt-5">
+    <div class="row">
+        <!-- Kolom Lokasi -->
+        <div class="col-md-6">
+            <h4 class="fw-bold mb-3">Lokasi</h4>
+            <iframe 
+                title="maps lokasi"
+                width="100%" 
+                height="350px" 
+                id="mapcanvas" 
+                src="https://maps.google.com/maps?q=-2.9349269722222227,104.8554916111111&ie=UTF8&iwloc=&output=embed" 
+                frameborder="0"
+                scrolling="no" 
+                marginheight="0" 
+                marginwidth="0">
+            </iframe>
+            <p class="text-muted mt-2">
+                <i class="bi bi-geo-alt"></i> Palembang, Sumatra Selatan
+            </p>
+        </div>
+
+        <!-- Kolom Kantor Pemasaran (TENGAH) -->
+        <div class="col-md-6 d-flex align-items-center">
+            <div class="text-center w-100">
+                <h4 class="fw-bold mb-3">Kantor Pemasaran</h4>
+                <p class="text-muted">
+                    <strong>PT Kedaton Sejahtera Abadi</strong><br>
+                    Perum Green Hayyat Regency no. 18 SUMATERA SELATAN, KOTA PALEMBANG, Sako, Sako<br>
+                    Telp : 081310619585<br>
+                    Email : ptkedatonsejahteraabadi@gmail.com
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- CTA LOGIN -->
     <div class="cta-section">

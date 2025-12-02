@@ -2,7 +2,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16 items-center">
             <div class="flex items-center gap-2">
-                <img src="images/lo.jpg" class="block h-8 w-auto text-blue-600">
+                <img src="{{ asset('images/logo.jpg') }}" class="block h-8 w-auto">
 
                 <div class="flex flex-col leading-tight">
                     <span class="font-semibold text-blue-600">Selamat Datang</span>
