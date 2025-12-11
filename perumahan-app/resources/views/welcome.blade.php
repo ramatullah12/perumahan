@@ -162,7 +162,7 @@
 <!-- HEADER -->
 <div class="hero-header text-center">
     <h3 class="fw-semibold">Temukan Rumah Impian Anda</h3>
-    <p>Proyek perumahan berkualitas dengan sistem monitoring pembangunan real-time</p>
+    <p>selamat datang di perumhan </p>
 
     <!-- SEARCH -->
     <div class="search-box mt-4">
