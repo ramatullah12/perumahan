@@ -96,10 +96,10 @@
         <div class="d-flex align-items-center">
             <a class="menu-item active" href="#">Dashboard</a>
             <a class="menu-item {{ request()->is('admin/booking') ? 'active' : '' }}" href="/admin/booking">Booking management</a>
-            <a class="menu-item" href="#">Manajemen Proyek</a>
-            <a class="menu-item" href="#">Manajemen Tipe Rumah</a>
-            <a class="menu-item" href="#">Manajemen Unit</a>
-            <a class="menu-item" href="#">Update Progres</a>
+            <a class="menu-item {{ request()->is('admin/project*') ? 'active' : '' }}" href="/admin/project">Manajemen Proyek</a>
+            <a class="menu-item {{ request()->is('admin/tipe*') ? 'active' : '' }}" href="/admin/tipe">Manajemen Tipe Rumah</a>
+            <a class="menu-item {{ request()->is('admin/unit*') ? 'active' : '' }}" href="/admin/unit">Manajemen Unit</a>
+            <a class="menu-item {{ request()->is('admin/progres*') ? 'active' : '' }}" href="/admin/progres">Update Progres</a>
             <a class="menu-item" href="#">Laporan</a>
         </div>
     </div>

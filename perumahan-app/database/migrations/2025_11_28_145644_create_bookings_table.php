@@ -13,16 +13,23 @@ return new class extends Migration
     {
         Schema::create('bookings', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // relasi ke user
+            
+            // RELASI UTAMA (Menghubungkan semua Role)
+            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // Customer
+            $table->foreignId('project_id')->constrained()->onDelete('cascade'); // Laporan Owner
+            $table->foreignId('unit_id')->constrained()->onDelete('cascade'); // Update Progres Admin
 
-            $table->string('nama');
-            $table->string('alamat');
-            $table->string('telepon');
-            $table->string('tipe_rumah');
-            $table->integer('harga');
-            $table->text('catatan')->nullable();
-
-            $table->string('status')->default('pending'); // pending, disetujui, ditolak
+            // DATA IDENTITAS & TRANSAKSI
+            $table->string('nama'); 
+            $table->string('telepon')->nullable();
+            $table->date('tanggal_booking');
+            
+            // KOLOM DOKUMEN (Untuk upload KTP/NPWP)
+            $table->string('dokumen')->nullable(); 
+            
+            // CATATAN & STATUS
+            $table->text('keterangan')->nullable();
+            $table->enum('status', ['pending', 'disetujui', 'ditolak'])->default('pending');
 
             $table->timestamps();
         });

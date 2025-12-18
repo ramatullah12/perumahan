@@ -2,64 +2,67 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\tipe;
+use App\Models\Tipe;
+use App\Models\Project;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class TipeController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
+    public function index() {
+        $tipes = Tipe::with('project')->latest()->get();
+        return view('tipe.admin.index', compact('tipes'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+    public function create() {
+        $projects = Project::all();
+        return view('tipe.admin.create', compact('projects'));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+    public function store(Request $request) {
+        $validated = $request->validate([
+            'project_id'    => 'required|exists:projects,id',
+            'nama_tipe'     => 'required|string',
+            'harga'         => 'required|numeric',
+            'luas_tanah'    => 'required|integer',
+            'luas_bangunan' => 'required|integer',
+            'kamar_tidur'   => 'required|integer',
+            'kamar_mandi'   => 'required|integer',
+            'gambar'        => 'required|image|mimes:jpg,png,jpeg,webp|max:5120',
+        ]);
+
+        if ($request->hasFile('gambar')) {
+            $validated['gambar'] = $request->file('gambar')->store('tipes', 'public');
+        }
+
+        Tipe::create($validated);
+        return redirect()->route('admin.tipe.index')->with('success', 'Tipe Berhasil Ditambahkan!');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(tipe $tipe)
-    {
-        //
+    public function edit(Tipe $tipe) {
+        $projects = Project::all();
+        return view('tipe.admin.edit', compact('tipe', 'projects'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(tipe $tipe)
-    {
-        //
+    public function update(Request $request, Tipe $tipe) {
+        $validated = $request->validate([
+            'project_id' => 'required',
+            'nama_tipe'  => 'required',
+            'gambar'     => 'nullable|image|max:5120',
+        ]);
+
+        if ($request->hasFile('gambar')) {
+            if ($tipe->gambar) Storage::disk('public')->delete($tipe->gambar);
+            $validated['gambar'] = $request->file('gambar')->store('tipes', 'public');
+        }
+
+        $tipe->update($validated);
+        return redirect()->route('admin.tipe.index')->with('success', 'Tipe Berhasil Diperbarui!');
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, tipe $tipe)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(tipe $tipe)
-    {
-        //
+    public function destroy(Tipe $tipe) {
+        if ($tipe->gambar) Storage::disk('public')->delete($tipe->gambar);
+        $tipe->delete();
+        return back()->with('success', 'Tipe Berhasil Dihapus!');
     }
 }
