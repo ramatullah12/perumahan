@@ -21,11 +21,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/dashboard', function () {
         return match (Auth::user()->role) {
-        'admin'  => redirect()->route('admin.dashboard'),
-        'owner'  => redirect()->route('owner.dashboard'),
-        'customer' => redirect()->route('customer.booking.index'), 
-        default  => redirect()->route('customer.booking.index'),
-    };
+            'admin'    => redirect()->route('admin.dashboard'),
+            'owner'    => redirect()->route('owner.dashboard'),
+            // Memastikan Customer langsung masuk ke daftar pesanan mereka
+            'customer' => redirect()->route('customer.booking.index'), 
+            default    => redirect()->route('customer.booking.index'),
+        };
     })->name('dashboard');
 
     // ======================
@@ -39,25 +40,25 @@ Route::middleware(['auth'])->group(function () {
         // BOOKING MANAGEMENT
         Route::get('/booking', [BookingController::class, 'indexAdmin'])->name('admin.booking.index');
         Route::get('/booking/{booking}', [BookingController::class, 'show'])->name('admin.booking.show');
-        
-        /**
-         * PERBAIKAN: Menggunakan PUT untuk update status agar sesuai dengan form di admin
-         */
         Route::put('/booking/{booking}/status', [BookingController::class, 'updateStatus'])->name('admin.booking.updateStatus');
 
-        // CRUD MANAGEMENT
+        // CRUD PROYEK, TIPE, & UNIT
         Route::resource('project', ProjectController::class)->names('admin.project');
         Route::resource('tipe', TipeController::class)->names('admin.tipe');
         Route::resource('unit', UnitController::class)->names('admin.unit');
         
-        // UNIT STATUS & AJAX (DASHBOARD ADMIN)
+        // AJAX UNIT & STATUS
         Route::patch('unit/{unit}/status', [UnitController::class, 'updateStatus'])->name('admin.unit.updateStatus');
         Route::get('get-tipe/{projectId}', [UnitController::class, 'getTipeByProject'])->name('admin.unit.getTipe');
 
         // PROGRES PEMBANGUNAN
+        // Resource ini menyediakan index, create, store, show, edit, update, destroy
         Route::resource('progres', ProgresController::class)->names('admin.progres');
+        
+        // Rute eksplisit tambahan untuk halaman edit jika resource tidak terbaca sempurna
+        Route::get('/progres/{id}/edit', [ProgresController::class, 'edit'])->name('admin.progres.edit');
 
-        // LAPORAN & ANALYTICS
+        // LAPORAN
         Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan.index');
     });
 
@@ -73,26 +74,22 @@ Route::middleware(['auth'])->group(function () {
     // CUSTOMER SECTION
     // ======================
     Route::middleware(['role:customer'])->prefix('customer')->group(function () {
+        // Halaman awal customer jika diakses manual
         Route::view('/dashboard', 'dashboard.customer')->name('customer.dashboard');
         
-        // BOOKING SYSTEM
+        // PEMESANAN UNIT (BOOKING)
         Route::get('/booking', [BookingController::class, 'indexCustomer'])->name('customer.booking.index');
         Route::get('/booking/create', [BookingController::class, 'create'])->name('customer.booking.create');
         Route::post('/booking', [BookingController::class, 'store'])->name('customer.booking.store');
-
-        /**
-         * RUTE BARU: AJAX untuk mengambil Unit berdasarkan Proyek yang dipilih
-         * Digunakan untuk memisahkan dropdown Proyek dan Unit di halaman Booking
-         */
         Route::get('/get-units/{projectId}', [BookingController::class, 'getUnitsByProject'])->name('customer.booking.getUnits');
         
-        // MONITORING UNIT & PROGRESS
-        Route::get('/my-progres', [ProgresController::class, 'indexCustomer'])->name('customer.progres.index');
-
+        // MONITORING PEMBANGUNAN
+        // Menyeragamkan rute agar sinkron dengan Controller indexCustomer
+        Route::get('/progres', [ProgresController::class, 'indexCustomer'])->name('customer.progres.index');
     });
 
     // ======================
-    // PROFILE DEFAULT
+    // PROFILE SETTINGS
     // ======================
     Route::controller(ProfileController::class)->group(function () {
         Route::get('/profile', 'edit')->name('profile.edit');
