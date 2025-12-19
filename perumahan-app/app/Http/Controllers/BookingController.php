@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Unit;
+use App\Models\Project;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Exception;
 
 class BookingController extends Controller
 {
@@ -16,6 +18,7 @@ class BookingController extends Controller
      */
     public function indexCustomer()
     {
+        // Eager loading unit.project wajib ada agar foto proyek di Admin sinkron ke Customer
         $bookings = Booking::with(['unit.project', 'unit.tipe'])
                             ->where('user_id', Auth::id())
                             ->latest()
@@ -26,20 +29,38 @@ class BookingController extends Controller
 
     /**
      * CUSTOMER - FORM BOOKING
-     * EDIT: Menambahkan pengelompokan (groupBy) berdasarkan proyek
+     * Menampilkan daftar unit yang dikelompokkan berdasarkan proyek
      */
     public function create()
     {
-        // Mengambil unit yang tersedia dan dikelompokkan berdasarkan nama proyek
+        // Mengambil unit tersedia dan mengelompokkan berdasarkan nama proyek
+        // Gunakan get() agar menghasilkan Collection, bukan boolean
         $units = Unit::with(['project', 'tipe'])
                      ->where('status', 'Tersedia')
                      ->get()
                      ->groupBy(function($unit) {
-                         // Mengelompokkan berdasarkan nama proyek dari relasi
                          return $unit->project->nama_proyek ?? 'Tanpa Proyek';
                      });
                      
-        return view('booking.customer.create', compact('units'));
+        // Mengambil daftar proyek saja (untuk dependent dropdown jika diperlukan)
+        $projects = Project::whereHas('units', function($q) {
+            $q->where('status', 'Tersedia');
+        })->get();
+
+        return view('booking.customer.create', compact('units', 'projects'));
+    }
+
+    /**
+     * AJAX - AMBIL UNIT BERDASARKAN PROYEK
+     */
+    public function getUnitsByProject($projectId)
+    {
+        $units = Unit::with('tipe')
+            ->where('project_id', $projectId)
+            ->where('status', 'Tersedia')
+            ->get();
+
+        return response()->json($units);
     }
 
     /**
@@ -52,41 +73,47 @@ class BookingController extends Controller
             'tanggal_booking' => 'required|date|after_or_equal:today',
             'dokumen_ktp'     => 'required|file|mimes:jpg,jpeg,png,pdf|max:2048',
             'keterangan'      => 'nullable|string|max:255',
+        ], [
+            'unit_id.required' => 'Silakan pilih unit terlebih dahulu.',
+            'dokumen_ktp.max'  => 'Ukuran file KTP tidak boleh lebih dari 2MB.'
         ]);
 
-        return DB::transaction(function () use ($request) {
-            // Lock unit agar tidak dibooking dua orang secara bersamaan (Race Condition)
-            $unit = Unit::lockForUpdate()->findOrFail($request->unit_id);
+        try {
+            return DB::transaction(function () use ($request) {
+                // Lock unit untuk mencegah "Race Condition"
+                $unit = Unit::lockForUpdate()->findOrFail($request->unit_id);
 
-            // Double Check Status
-            if ($unit->status !== 'Tersedia') {
-                return redirect()->back()->with('error', 'Maaf, unit ini baru saja dibooking atau sudah terjual.');
-            }
+                if ($unit->status !== 'Tersedia') {
+                    throw new Exception('Maaf, unit ini baru saja dibooking atau sudah tidak tersedia.');
+                }
 
-            // Upload KTP
-            $pathKtp = null;
-            if ($request->hasFile('dokumen_ktp')) {
-                $pathKtp = $request->file('dokumen_ktp')->store('dokumen_booking', 'public');
-            }
+                // Simpan Dokumen KTP ke storage/public/dokumen_booking
+                $pathKtp = null;
+                if ($request->hasFile('dokumen_ktp')) {
+                    $pathKtp = $request->file('dokumen_ktp')->store('dokumen_booking', 'public');
+                }
 
-            // Simpan Data Booking
-            Booking::create([
-                'user_id'         => Auth::id(),
-                'nama'            => Auth::user()->name, 
-                'project_id'      => $unit->project_id,
-                'unit_id'         => $unit->id,
-                'tanggal_booking' => $request->tanggal_booking,
-                'dokumen'         => $pathKtp,
-                'keterangan'      => $request->keterangan,
-                'status'          => 'pending',
-            ]);
+                // Buat Data Booking
+                Booking::create([
+                    'user_id'         => Auth::id(),
+                    'nama'            => Auth::user()->name, 
+                    'project_id'      => $unit->project_id,
+                    'unit_id'         => $unit->id,
+                    'tanggal_booking' => $request->tanggal_booking,
+                    'dokumen'         => $pathKtp,
+                    'keterangan'      => $request->keterangan,
+                    'status'          => 'pending',
+                ]);
 
-            // Ubah status unit menjadi 'Dibooking' agar tidak muncul lagi di pilihan unit customer lain
-            $unit->update(['status' => 'Dibooking']);
+                // Update status unit agar tidak muncul di pilihan unit customer lain
+                $unit->update(['status' => 'Dibooking']);
 
-            return redirect()->route('customer.booking.index')
-                ->with('success', 'Booking berhasil dikirim! Silakan tunggu konfirmasi Admin.');
-        });
+                return redirect()->route('customer.booking.index')
+                    ->with('success', 'Booking berhasil! Silakan tunggu verifikasi admin.');
+            });
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
     }
 
     /**
@@ -110,21 +137,25 @@ class BookingController extends Controller
             'status' => 'required|in:disetujui,ditolak',
         ]);
 
-        return DB::transaction(function () use ($request, $booking) {
-            
-            $booking->update(['status' => $request->status]);
-            $unit = $booking->unit;
+        try {
+            return DB::transaction(function () use ($request, $booking) {
+                
+                $booking->update(['status' => $request->status]);
+                $unit = $booking->unit;
 
-            if ($request->status == 'disetujui') {
-                // Jika disetujui, unit resmi terjual
-                $unit->update(['status' => 'Terjual']);
-            } elseif ($request->status == 'ditolak') {
-                // Jika ditolak, unit tersedia kembali untuk customer lain
-                $unit->update(['status' => 'Tersedia']);
-            }
+                if ($request->status == 'disetujui') {
+                    // Unit resmi terjual
+                    $unit->update(['status' => 'Terjual']);
+                } else if ($request->status == 'ditolak') {
+                    // Unit tersedia kembali
+                    $unit->update(['status' => 'Tersedia']);
+                }
 
-            return redirect()->route('admin.booking.index')
-                ->with('success', 'Status booking berhasil diperbarui!');
-        });
+                return redirect()->route('admin.booking.index')
+                    ->with('success', 'Status booking berhasil diperbarui.');
+            });
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+        }
     }
 }

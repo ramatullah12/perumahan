@@ -16,7 +16,7 @@ class ProgresController extends Controller
      */
     public function index()
     {
-        // Menampilkan unit yang sudah laku (Dibooking/Terjual) untuk diupdate progresnya
+        // Menampilkan unit yang sudah Dibooking atau Terjual agar admin bisa update progresnya
         $units = Unit::with(['project', 'latestProgres', 'booking.user'])
             ->whereIn('status', ['Dibooking', 'Terjual'])
             ->get();
@@ -26,13 +26,13 @@ class ProgresController extends Controller
 
     /**
      * CUSTOMER - LIHAT PROGRES UNIT MILIK SENDIRI
-     * Fungsi ini untuk memperbaiki error di sisi Customer
      */
     public function indexCustomer()
     {
-        // Mencari booking milik user login yang sudah disetujui
+        // Mengambil data booking milik user login yang statusnya sudah disetujui
+        // Pastikan path view diarahkan ke 'progres.customer.index' setelah folder Anda di-rename
         $bookings = Booking::with(['unit.project', 'unit.progres' => function($query) {
-                $query->latest(); // Urutkan progres dari yang terbaru
+                $query->latest(); 
             }])
             ->where('user_id', Auth::id())
             ->where('status', 'disetujui')
@@ -60,10 +60,10 @@ class ProgresController extends Controller
             $data['foto'] = $request->file('foto')->store('progres_pembangunan', 'public');
         }
 
-        // Simpan ke tabel progres
+        // Simpan catatan baru ke tabel progres
         Progres::create($data);
 
-        // OTOMATIS: Update kolom 'progres_pembangunan' di tabel units agar sinkron
+        // Update persentase di tabel units agar data sinkron saat dipanggil di dashboard
         Unit::where('id', $request->unit_id)->update([
             'progres_pembangunan' => $request->persentase
         ]);
@@ -72,10 +72,12 @@ class ProgresController extends Controller
     }
 
     /**
-     * ADMIN - HAPUS PROGRES
+     * ADMIN - HAPUS CATATAN PROGRES
      */
-    public function destroy(Progres $progres)
+    public function destroy($id)
     {
+        $progres = Progres::findOrFail($id);
+
         if ($progres->foto) {
             Storage::disk('public')->delete($progres->foto);
         }

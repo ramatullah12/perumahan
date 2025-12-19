@@ -21,10 +21,11 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/dashboard', function () {
         return match (Auth::user()->role) {
-            'admin'  => redirect()->route('admin.dashboard'),
-            'owner'  => redirect()->route('owner.dashboard'),
-            default  => redirect()->route('customer.dashboard'),
-        };
+        'admin'  => redirect()->route('admin.dashboard'),
+        'owner'  => redirect()->route('owner.dashboard'),
+        'customer' => redirect()->route('customer.booking.index'), 
+        default  => redirect()->route('customer.booking.index'),
+    };
     })->name('dashboard');
 
     // ======================
@@ -39,7 +40,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/booking', [BookingController::class, 'indexAdmin'])->name('admin.booking.index');
         Route::get('/booking/{booking}', [BookingController::class, 'show'])->name('admin.booking.show');
         
-        // SOLUSI ERROR image_da8b2b.png: Pastikan menggunakan PUT
+        /**
+         * PERBAIKAN: Menggunakan PUT untuk update status agar sesuai dengan form di admin
+         */
         Route::put('/booking/{booking}/status', [BookingController::class, 'updateStatus'])->name('admin.booking.updateStatus');
 
         // CRUD MANAGEMENT
@@ -47,14 +50,14 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('tipe', TipeController::class)->names('admin.tipe');
         Route::resource('unit', UnitController::class)->names('admin.unit');
         
-        // UNIT STATUS & AJAX
+        // UNIT STATUS & AJAX (DASHBOARD ADMIN)
         Route::patch('unit/{unit}/status', [UnitController::class, 'updateStatus'])->name('admin.unit.updateStatus');
         Route::get('get-tipe/{projectId}', [UnitController::class, 'getTipeByProject'])->name('admin.unit.getTipe');
 
         // PROGRES PEMBANGUNAN
         Route::resource('progres', ProgresController::class)->names('admin.progres');
 
-        // LAPORAN & ANALYTICS (Dilihat Admin)
+        // LAPORAN & ANALYTICS
         Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan.index');
     });
 
@@ -63,8 +66,6 @@ Route::middleware(['auth'])->group(function () {
     // ======================
     Route::middleware(['role:owner'])->prefix('owner')->group(function () {
         Route::view('/dashboard', 'dashboard.owner')->name('owner.dashboard');
-        
-        // OWNER KONEKSI: Memantau Laporan dari Unit yang terjual
         Route::get('/laporan', [LaporanController::class, 'index'])->name('owner.laporan.index');
     });
 
@@ -78,9 +79,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/booking', [BookingController::class, 'indexCustomer'])->name('customer.booking.index');
         Route::get('/booking/create', [BookingController::class, 'create'])->name('customer.booking.create');
         Route::post('/booking', [BookingController::class, 'store'])->name('customer.booking.store');
+
+        /**
+         * RUTE BARU: AJAX untuk mengambil Unit berdasarkan Proyek yang dipilih
+         * Digunakan untuk memisahkan dropdown Proyek dan Unit di halaman Booking
+         */
+        Route::get('/get-units/{projectId}', [BookingController::class, 'getUnitsByProject'])->name('customer.booking.getUnits');
         
-        // MONITORING UNIT
+        // MONITORING UNIT & PROGRESS
         Route::get('/my-progres', [ProgresController::class, 'indexCustomer'])->name('customer.progres.index');
+
     });
 
     // ======================

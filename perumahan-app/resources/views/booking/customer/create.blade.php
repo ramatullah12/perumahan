@@ -16,6 +16,19 @@
     .btn-submit { width: 100%; background: #1e5eff; color: white; padding: 18px; border-radius: 20px; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; border: none; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 15px -3px rgba(30, 94, 255, 0.2); }
     .btn-submit:hover { background: #0046ff; transform: translateY(-2px); }
     optgroup { font-weight: 800; color: #1e5eff; background: #f8fafc; }
+    
+    /* Tambahan Style untuk Pesan Sukses */
+    .alert-success-custom { 
+        background: #f0fdf4; color: #15803d; padding: 20px; border-radius: 20px; 
+        margin-bottom: 30px; border: 1px solid #bbf7d0; display: flex; align-items: center;
+        animation: slideDown 0.5s ease-out;
+    }
+    .alert-danger-custom { background: #fff5f5; color: #c53030; padding: 15px; border-radius: 20px; margin-bottom: 20px; border: 1px solid #feb2b2; }
+    
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 </style>
 
 <div class="content-wrapper">
@@ -25,32 +38,65 @@
     </div>
 
     <div class="max-w-3xl mx-auto">
+        {{-- PESAN BERHASIL --}}
+        @if(session('success'))
+            <div class="alert-success-custom">
+                <div style="background: #22c55e; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; flex-shrink: 0;">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div>
+                    <strong style="display: block; font-size: 16px;">Berhasil!</strong>
+                    <span style="font-size: 14px;">{{ session('success') }}</span>
+                </div>
+            </div>
+        @endif
+
+        {{-- Pesan Validasi Error --}}
+        @if ($errors->any())
+            <div class="alert-danger-custom">
+                <ul style="margin: 0; padding-left: 20px;">
+                    @foreach ($errors->all() as $error)
+                        <li style="font-weight: 600; font-size: 14px;">{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        {{-- Pesan Error Manual dari Session --}}
+        @if(session('error'))
+            <div class="alert-danger-custom">
+                <p style="margin:0; font-weight:600;"><i class="fas fa-exclamation-triangle mr-2"></i> {{ session('error') }}</p>
+            </div>
+        @endif
+
         <div class="form-card">
             <form action="{{ route('customer.booking.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {{-- PILIH UNIT BERDASARKAN PROYEK --}}
                     <div class="form-group md:col-span-2">
                         <label class="label-custom">Pilih Proyek & Unit Rumah</label>
                         <select name="unit_id" id="unit_select" required class="input-custom">
                             <option value="" selected disabled>-- Cari Unit Tersedia --</option>
-                            @foreach($units as $namaProyek => $daftarUnit)
-                                <optgroup label="PROYEK: {{ strtoupper($namaProyek) }}">
-                                    @foreach($daftarUnit as $unit)
-                                        <option value="{{ $unit->id }}" 
-                                                data-harga="Rp {{ number_format($unit->tipe->harga, 0, ',', '.') }}"
-                                                data-proyek="{{ $unit->project->nama_proyek }}"
-                                                data-tipe="Tipe {{ $unit->tipe->nama_tipe }}">
-                                            Blok {{ $unit->block }} No. {{ $unit->no_unit }} ({{ $unit->tipe->nama_tipe }})
-                                        </option>
-                                    @endforeach
-                                </optgroup>
-                            @endforeach
+                            @isset($units)
+                                @foreach($units as $namaProyek => $daftarUnit)
+                                    <optgroup label="PROYEK: {{ strtoupper($namaProyek) }}">
+                                        @foreach($daftarUnit as $unit)
+                                            @if(is_object($unit))
+                                                <option value="{{ $unit->id }}" 
+                                                        data-harga="Rp {{ number_format($unit->tipe->harga ?? 0, 0, ',', '.') }}"
+                                                        data-proyek="{{ $unit->project->nama_proyek ?? $namaProyek }}"
+                                                        data-tipe="Tipe {{ $unit->tipe->nama_tipe ?? 'N/A' }}">
+                                                    Blok {{ $unit->block ?? '-' }} No. {{ $unit->no_unit ?? '-' }} ({{ $unit->tipe->nama_tipe ?? 'N/A' }})
+                                                </option>
+                                            @endif
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            @endisset
                         </select>
                     </div>
 
-                    {{-- INFO UNIT DINAMIS --}}
                     <div id="unit_info" class="info-unit-box md:col-span-2">
                         <div style="font-size: 11px; font-weight: 800; color: #1e5eff; text-transform: uppercase; margin-bottom: 5px;">
                             <i class="fas fa-home mr-1"></i> Ringkasan Unit Terpilih:
@@ -59,34 +105,26 @@
                         <div id="display_detail" style="font-size: 14px; color: #4a5568; margin-top: 4px; font-weight: 600;"></div>
                     </div>
 
-                    {{-- TANGGAL BOOKING --}}
                     <div class="form-group">
                         <label class="label-custom">Rencana Tanggal Booking</label>
-                        <input type="date" name="tanggal_booking" required class="input-custom" value="{{ date('Y-m-d') }}" min="{{ date('Y-m-d') }}">
+                        <input type="date" name="tanggal_booking" required class="input-custom" 
+                               value="{{ old('tanggal_booking', date('Y-m-d')) }}" 
+                               min="{{ date('Y-m-d') }}">
                     </div>
 
-                    {{-- UPLOAD KTP --}}
                     <div class="form-group">
                         <label class="label-custom">Upload KTP (.jpg, .png, .pdf)</label>
                         <input type="file" name="dokumen_ktp" required class="input-custom" accept="image/*,.pdf">
                     </div>
                 </div>
 
-                {{-- CATATAN TAMBAHAN --}}
                 <div class="form-group">
                     <label class="label-custom">Keterangan Tambahan (Opsional)</label>
-                    <textarea name="keterangan" rows="3" class="input-custom" placeholder="Tuliskan pesan atau permintaan khusus untuk admin..."></textarea>
+                    <textarea name="keterangan" rows="3" class="input-custom" 
+                              placeholder="Tuliskan pesan atau permintaan khusus untuk admin...">{{ old('keterangan') }}</textarea>
                 </div>
 
-                <div style="background: #fff7ed; border-radius: 15px; padding: 15px; margin-bottom: 25px; border: 1px solid #ffedd5;">
-                    <p style="font-size: 12px; color: #9a3412; line-height: 1.6; font-weight: 600;">
-                        <i class="fas fa-shield-alt mr-1"></i> Data Anda aman bersama kami. Admin akan memverifikasi pengajuan Anda dalam waktu maksimal 2x24 jam.
-                    </p>
-                </div>
-
-                <button type="submit" class="btn-submit">
-                    Kirim Pengajuan Booking
-                </button>
+                <button type="submit" class="btn-submit">Kirim Pengajuan Booking</button>
             </form>
         </div>
     </div>
@@ -97,7 +135,7 @@
         const selectedOption = this.options[this.selectedIndex];
         const infoBox = document.getElementById('unit_info');
         
-        if (selectedOption.value) {
+        if (selectedOption && selectedOption.value) {
             infoBox.style.display = 'block';
             document.getElementById('display_harga').innerText = selectedOption.getAttribute('data-harga');
             document.getElementById('display_detail').innerText = 

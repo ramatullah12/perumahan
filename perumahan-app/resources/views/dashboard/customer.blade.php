@@ -31,7 +31,7 @@
 
         <div class="d-flex align-items-center">
             <a class="menu-item {{ request()->is('customer/booking') ? 'active' : '' }}" href="/customer/booking">Booking Saya</a>
-            <a class="menu-item {{ request()->is('customer/progres*') ? 'active' : '' }}" href="/customer/progres">Proses pembangunan</a>
+            <a class="menu-item {{ request()->routeIs('customer.progres.*') ? 'active' : '' }}" href="{{ route('customer.progres.index') }}">Proses Pembangunan</a>
             <a class="menu-item" href="/customer/proyek">Jelajahi proyek</a>
             <a class="menu-item" href="/customer/notifikasi">Notifikasi</a>
         </div>

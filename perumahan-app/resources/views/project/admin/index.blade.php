@@ -15,23 +15,10 @@
         </a>
     </div>
 
-    {{-- Notifikasi Sukses --}}
-    @if(session('success'))
-    <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-700 rounded-r-xl flex justify-between items-center shadow-sm animate-fade-in">
-        <div class="flex items-center">
-            <i class="fas fa-check-circle mr-3 text-xl"></i>
-            <span class="font-semibold">{{ session('success') }}</span>
-        </div>
-        <button onclick="this.parentElement.remove()" class="text-green-500 hover:text-green-700 transition-colors">
-            <i class="fas fa-times"></i>
-        </button>
-    </div>
-    @endif
-
     {{-- Daftar Proyek --}}
     <div class="space-y-6">
         @forelse($projects as $project)
-        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-xl hover:-translate-y-1 relative group bg-cover bg-right-top bg-no-repeat">
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-xl hover:-translate-y-1 relative group">
             <div class="flex flex-col md:flex-row gap-8">
                 
                 {{-- Foto Proyek --}}
@@ -47,7 +34,6 @@
                         </div>
                     @endif
                     
-                    {{-- Badge Status di Atas Gambar --}}
                     <div class="absolute top-3 left-3">
                         <span class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm border
                             {{ $project->status == 'Sedang Berjalan' ? 'bg-blue-600 text-white border-blue-400' : 'bg-green-600 text-white border-green-400' }}">
@@ -74,17 +60,17 @@
                                 <i class="fas fa-pencil-alt text-sm"></i>
                             </a>
 
-                            <form action="{{ route('admin.project.destroy', $project->id) }}" 
-                                  method="POST" 
-                                  class="inline-block"
-                                  onsubmit="return confirm('Hapus proyek [{{ $project->nama_proyek }}]? Seluruh data unit dan booking di proyek ini akan ikut terhapus.')">
+                            {{-- Tombol Hapus dengan SweetAlert --}}
+                            <button type="button" 
+                                    onclick="btnDeleteProject('{{ $project->id }}', '{{ $project->nama_proyek }}')"
+                                    class="bg-red-50 text-red-600 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                    title="Hapus Proyek">
+                                <i class="fas fa-trash-alt text-sm"></i>
+                            </button>
+
+                            <form id="form-delete-project-{{ $project->id }}" action="{{ route('admin.project.destroy', $project->id) }}" method="POST" class="hidden">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" 
-                                        class="bg-red-50 text-red-600 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                        title="Hapus Proyek">
-                                    <i class="fas fa-trash-alt text-sm"></i>
-                                </button>
                             </form>
                         </div>
                     </div>
@@ -95,31 +81,30 @@
 
                     {{-- Status Statistik Unit --}}
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="bg-white p-3 rounded-2xl text-center border border-gray-100 shadow-sm hover:border-gray-300 transition-colors">
+                        <div class="bg-white p-3 rounded-2xl text-center border border-gray-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-gray-400 mb-1">Total</p>
                             <p class="text-xl font-black text-gray-800">{{ number_format($project->total_unit) }}</p>
                         </div>
-                        <div class="bg-green-50/50 p-3 rounded-2xl text-center border border-green-100 shadow-sm hover:border-green-300 transition-colors">
+                        <div class="bg-green-50/50 p-3 rounded-2xl text-center border border-green-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-green-600 mb-1">Tersedia</p>
                             <p class="text-xl font-black text-green-700">{{ number_format($project->tersedia) }}</p>
                         </div>
-                        <div class="bg-orange-50/50 p-3 rounded-2xl text-center border border-orange-100 shadow-sm hover:border-orange-300 transition-colors">
+                        <div class="bg-orange-50/50 p-3 rounded-2xl text-center border border-orange-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-orange-600 mb-1">Booked</p>
                             <p class="text-xl font-black text-orange-700">{{ number_format($project->booked) }}</p>
                         </div>
-                        <div class="bg-blue-50/50 p-3 rounded-2xl text-center border border-blue-100 shadow-sm hover:border-blue-300 transition-colors">
+                        <div class="bg-blue-50/50 p-3 rounded-2xl text-center border border-blue-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-blue-600 mb-1">Terjual</p>
                             <p class="text-xl font-black text-blue-700">{{ number_format($project->terjual) }}</p>
                         </div>
                     </div>
 
                     <div class="mt-6 flex justify-between items-center pt-4 border-t border-gray-50">
-                        <div class="flex items-center gap-4">
-                            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center">
-                                <i class="far fa-clock mr-1.5"></i> Update {{ $project->updated_at->diffForHumans() }}
-                            </span>
-                        </div>
-                        <a href="#" class="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors">
+                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center">
+                            <i class="far fa-clock mr-1.5"></i> Update {{ $project->updated_at->diffForHumans() }}
+                        </span>
+                        {{-- Tombol Lihat Detail Unit (Mengarah ke Manajemen Unit Terfilter) --}}
+                        <a href="{{ route('admin.unit.index', ['project_id' => $project->id]) }}" class="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors">
                             Lihat Detail Unit <i class="fas fa-arrow-right ml-1"></i>
                         </a>
                     </div>
@@ -127,8 +112,9 @@
             </div>
         </div>
         @empty
+        {{-- Empty State --}}
         <div class="bg-white rounded-3xl p-20 text-center border-2 border-dashed border-gray-200">
-            <div class="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300 shadow-inner">
+            <div class="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
                 <i class="fas fa-building text-4xl"></i>
             </div>
             <h3 class="text-2xl font-black text-gray-800">Tidak Ada Proyek</h3>
@@ -140,4 +126,44 @@
         @endforelse
     </div>
 </div>
+
+{{-- Script SweetAlert2 --}}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function btnDeleteProject(id, name) {
+        Swal.fire({
+            title: 'Hapus Proyek?',
+            html: `Apakah Anda yakin ingin menghapus proyek <b>${name}</b>?<br><small class="text-red-500">Peringatan: Seluruh data unit dan booking di proyek ini akan terhapus permanen!</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Ya, Hapus Semua!',
+            cancelButtonText: 'Batal',
+            borderRadius: '25px',
+            background: '#ffffff',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('form-delete-project-' + id).submit();
+            }
+        })
+    }
+</script>
+
+{{-- Toast Notifikasi --}}
+@if(session('success'))
+<script>
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+    });
+    Toast.fire({
+        icon: 'success',
+        title: "{{ session('success') }}"
+    });
+</script>
+@endif
 @endsection
