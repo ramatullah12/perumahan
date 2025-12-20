@@ -60,7 +60,6 @@
                                 <i class="fas fa-pencil-alt text-sm"></i>
                             </a>
 
-                            {{-- Tombol Hapus dengan SweetAlert --}}
                             <button type="button" 
                                     onclick="btnDeleteProject('{{ $project->id }}', '{{ $project->nama_proyek }}')"
                                     class="bg-red-50 text-red-600 w-11 h-11 flex items-center justify-center rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
@@ -79,22 +78,25 @@
                         "{{ $project->deskripsi ?? 'Proyek ini belum memiliki deskripsi detail.' }}"
                     </p>
 
-                    {{-- Status Statistik Unit --}}
+                    {{-- PERBAIKAN: Statistik Unit (Menggunakan variabel otomatis dari Controller) --}}
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="bg-white p-3 rounded-2xl text-center border border-gray-100 shadow-sm">
-                            <p class="text-[10px] uppercase tracking-tighter font-black text-gray-400 mb-1">Total</p>
+                            <p class="text-[10px] uppercase tracking-tighter font-black text-gray-400 mb-1">Target Kapasitas</p>
                             <p class="text-xl font-black text-gray-800">{{ number_format($project->total_unit) }}</p>
                         </div>
                         <div class="bg-green-50/50 p-3 rounded-2xl text-center border border-green-100 shadow-sm">
-                            <p class="text-[10px] uppercase tracking-tighter font-black text-green-600 mb-1">Tersedia</p>
+                            <p class="text-[10px] uppercase tracking-tighter font-black text-green-600 mb-1">Tersedia Riil</p>
+                            {{-- Mengambil data riil dari unit dengan status 'Tersedia' --}}
                             <p class="text-xl font-black text-green-700">{{ number_format($project->tersedia) }}</p>
                         </div>
                         <div class="bg-orange-50/50 p-3 rounded-2xl text-center border border-orange-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-orange-600 mb-1">Booked</p>
+                            {{-- Mengambil data riil dari unit dengan status 'Dibooking' --}}
                             <p class="text-xl font-black text-orange-700">{{ number_format($project->booked) }}</p>
                         </div>
                         <div class="bg-blue-50/50 p-3 rounded-2xl text-center border border-blue-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-blue-600 mb-1">Terjual</p>
+                            {{-- Mengambil data riil dari unit dengan status 'Terjual' --}}
                             <p class="text-xl font-black text-blue-700">{{ number_format($project->terjual) }}</p>
                         </div>
                     </div>
@@ -103,7 +105,6 @@
                         <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center">
                             <i class="far fa-clock mr-1.5"></i> Update {{ $project->updated_at->diffForHumans() }}
                         </span>
-                        {{-- Tombol Lihat Detail Unit (Mengarah ke Manajemen Unit Terfilter) --}}
                         <a href="{{ route('admin.unit.index', ['project_id' => $project->id]) }}" class="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 transition-colors">
                             Lihat Detail Unit <i class="fas fa-arrow-right ml-1"></i>
                         </a>
@@ -112,7 +113,6 @@
             </div>
         </div>
         @empty
-        {{-- Empty State --}}
         <div class="bg-white rounded-3xl p-20 text-center border-2 border-dashed border-gray-200">
             <div class="bg-gray-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-300">
                 <i class="fas fa-building text-4xl"></i>
@@ -127,7 +127,7 @@
     </div>
 </div>
 
-{{-- Script SweetAlert2 --}}
+{{-- Script SweetAlert2 & Toast --}}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function btnDeleteProject(id, name) {
@@ -140,8 +140,11 @@
             cancelButtonColor: '#6b7280',
             confirmButtonText: 'Ya, Hapus Semua!',
             cancelButtonText: 'Batal',
-            borderRadius: '25px',
-            background: '#ffffff',
+            customClass: {
+                popup: 'rounded-[2rem]',
+                confirmButton: 'rounded-xl px-6 py-3 font-bold',
+                cancelButton: 'rounded-xl px-6 py-3 font-bold'
+            }
         }).then((result) => {
             if (result.isConfirmed) {
                 document.getElementById('form-delete-project-' + id).submit();
@@ -150,7 +153,6 @@
     }
 </script>
 
-{{-- Toast Notifikasi --}}
 @if(session('success'))
 <script>
     const Toast = Swal.mixin({

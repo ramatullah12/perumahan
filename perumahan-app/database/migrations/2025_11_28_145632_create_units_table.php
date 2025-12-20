@@ -13,17 +13,18 @@ return new class extends Migration
     {
         Schema::create('units', function (Blueprint $table) {
             $table->id();
-            // Relasi ke tabel projects
+            
+            // Relasi ke tabel projects (Foreign Key)
             $table->foreignId('project_id')->constrained('projects')->onDelete('cascade');
             
-            // Relasi ke tabel tipes
+            // Relasi ke tabel tipes (Foreign Key)
             $table->foreignId('tipe_id')->constrained('tipes')->onDelete('cascade');
             
             // Spesifikasi posisi unit
-            $table->string('block'); // Contoh: A, B, atau C
-            $table->string('no_unit'); // Contoh: 01, 02, dsb
+            $table->string('block'); 
+            $table->string('no_unit'); 
             
-            // Status ketersediaan menggunakan enum agar validasi lebih ketat
+            // Status unit
             $table->enum('status', ['Tersedia', 'Dibooking', 'Terjual'])->default('Tersedia');
             
             $table->timestamps();

@@ -7,6 +7,8 @@ use App\Http\Controllers\TipeController;
 use App\Http\Controllers\UnitController;
 use App\Http\Controllers\ProgresController;
 use App\Http\Controllers\LaporanController;
+// TAMBAHKAN IMPORT INI
+use App\Http\Controllers\NotificationController; 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -32,29 +34,16 @@ Route::middleware(['auth'])->group(function () {
     // ADMIN SECTION
     // ======================
     Route::middleware(['role:admin'])->prefix('admin')->group(function () {
-
-        // DASHBOARD
         Route::view('/dashboard', 'dashboard.admin')->name('admin.dashboard');
-
-        // BOOKING MANAGEMENT
         Route::get('/booking', [BookingController::class, 'indexAdmin'])->name('admin.booking.index');
         Route::get('/booking/{booking}', [BookingController::class, 'show'])->name('admin.booking.show');
         Route::put('/booking/{booking}/status', [BookingController::class, 'updateStatus'])->name('admin.booking.updateStatus');
-
-        // CRUD PROYEK, TIPE, & UNIT
         Route::resource('project', ProjectController::class)->names('admin.project');
         Route::resource('tipe', TipeController::class)->names('admin.tipe');
         Route::resource('unit', UnitController::class)->names('admin.unit');
-        
-        // AJAX UNIT & STATUS
         Route::patch('unit/{unit}/status', [UnitController::class, 'updateStatus'])->name('admin.unit.updateStatus');
         Route::get('get-tipe/{projectId}', [UnitController::class, 'getTipeByProject'])->name('admin.unit.getTipe');
-
-        // PROGRES PEMBANGUNAN
-        // Memberikan kontrol penuh admin untuk mengelola riwayat progres unit terjual
         Route::resource('progres', ProgresController::class)->names('admin.progres');
-        
-        // LAPORAN
         Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan.index');
     });
 
@@ -72,8 +61,7 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:customer'])->prefix('customer')->group(function () {
         Route::view('/dashboard', 'dashboard.customer')->name('customer.dashboard');
         
-        // JELAJAHI PROYEK (UNIT TERSEDIA)
-        // Rute untuk melihat katalog proyek dari UnitController
+        // JELAJAHI PROYEK
         Route::get('/proyek', [UnitController::class, 'jelajahiProyek'])->name('customer.proyek.index');
         
         // PEMESANAN UNIT (BOOKING)
@@ -83,8 +71,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/get-units/{projectId}', [BookingController::class, 'getUnitsByProject'])->name('customer.booking.getUnits');
         
         // MONITORING PEMBANGUNAN
-        // Menampilkan riwayat progres unit yang sudah dibeli customer
         Route::get('/progres', [ProgresController::class, 'indexCustomer'])->name('customer.progres.index');
+
+        // =====================================
+        // TAMBAHKAN RUTE NOTIFIKASI DI SINI
+        // =====================================
+        Route::get('/notifikasi', [NotificationController::class, 'index'])->name('notifications.index');
     });
 
     // ======================

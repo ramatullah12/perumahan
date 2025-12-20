@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Booking;
 use App\Models\Unit;
 use App\Models\Project;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +19,6 @@ class BookingController extends Controller
      */
     public function indexCustomer()
     {
-        // Eager loading unit.project wajib ada agar foto proyek di Admin sinkron ke Customer
         $bookings = Booking::with(['unit.project', 'unit.tipe'])
                             ->where('user_id', Auth::id())
                             ->latest()
@@ -29,12 +29,9 @@ class BookingController extends Controller
 
     /**
      * CUSTOMER - FORM BOOKING
-     * Menampilkan daftar unit yang dikelompokkan berdasarkan proyek
      */
     public function create()
     {
-        // Mengambil unit tersedia dan mengelompokkan berdasarkan nama proyek
-        // Gunakan get() agar menghasilkan Collection, bukan boolean
         $units = Unit::with(['project', 'tipe'])
                      ->where('status', 'Tersedia')
                      ->get()
@@ -42,7 +39,6 @@ class BookingController extends Controller
                          return $unit->project->nama_proyek ?? 'Tanpa Proyek';
                      });
                      
-        // Mengambil daftar proyek saja (untuk dependent dropdown jika diperlukan)
         $projects = Project::whereHas('units', function($q) {
             $q->where('status', 'Tersedia');
         })->get();
@@ -80,20 +76,17 @@ class BookingController extends Controller
 
         try {
             return DB::transaction(function () use ($request) {
-                // Lock unit untuk mencegah "Race Condition"
                 $unit = Unit::lockForUpdate()->findOrFail($request->unit_id);
 
                 if ($unit->status !== 'Tersedia') {
                     throw new Exception('Maaf, unit ini baru saja dibooking atau sudah tidak tersedia.');
                 }
 
-                // Simpan Dokumen KTP ke storage/public/dokumen_booking
                 $pathKtp = null;
                 if ($request->hasFile('dokumen_ktp')) {
                     $pathKtp = $request->file('dokumen_ktp')->store('dokumen_booking', 'public');
                 }
 
-                // Buat Data Booking
                 Booking::create([
                     'user_id'         => Auth::id(),
                     'nama'            => Auth::user()->name, 
@@ -105,7 +98,6 @@ class BookingController extends Controller
                     'status'          => 'pending',
                 ]);
 
-                // Update status unit agar tidak muncul di pilihan unit customer lain
                 $unit->update(['status' => 'Dibooking']);
 
                 return redirect()->route('customer.booking.index')
@@ -129,12 +121,12 @@ class BookingController extends Controller
     }
 
     /**
-     * ADMIN - UPDATE STATUS BOOKING
+     * ADMIN - UPDATE STATUS BOOKING + KONTROL AKSES NOTIFIKASI
      */
     public function updateStatus(Request $request, Booking $booking)
     {
         $request->validate([
-            'status' => 'required|in:disetujui,ditolak',
+            'status' => 'required|in:disetujui,ditolak,pending',
         ]);
 
         try {
@@ -143,16 +135,35 @@ class BookingController extends Controller
                 $booking->update(['status' => $request->status]);
                 $unit = $booking->unit;
 
+                // 1. JIKA DISETUJUI (MEMBERIKAN AKSES)
                 if ($request->status == 'disetujui') {
-                    // Unit resmi terjual
                     $unit->update(['status' => 'Terjual']);
-                } else if ($request->status == 'ditolak') {
-                    // Unit tersedia kembali
-                    $unit->update(['status' => 'Tersedia']);
+
+                    // Buat atau perbarui notifikasi agar muncul di portal customer
+                    Notification::updateOrCreate(
+                        ['user_id' => $booking->user_id, 'type' => 'booking'],
+                        [
+                            'title'   => 'Booking Disetujui!',
+                            'message' => 'Selamat! Booking Anda untuk Unit ' . $unit->no_unit . ' di ' . $booking->unit->project->nama_proyek . ' telah disetujui. Akses monitoring pembangunan kini dibuka.',
+                            'is_read' => false,
+                            'created_at' => now()
+                        ]
+                    );
+
+                } 
+                // 2. JIKA DITOLAK ATAU KEMBALI KE PENDING (MENCABUT AKSES)
+                else {
+                    // Update status unit kembali
+                    $unit->update(['status' => ($request->status == 'pending' ? 'Dibooking' : 'Tersedia')]);
+
+                    // Hapus notifikasi terkait agar hilang dari layar customer
+                    Notification::where('user_id', $booking->user_id)
+                        ->where('type', 'booking')
+                        ->delete();
                 }
 
                 return redirect()->route('admin.booking.index')
-                    ->with('success', 'Status booking berhasil diperbarui.');
+                    ->with('success', 'Status diperbarui. Akses notifikasi customer telah disesuaikan.');
             });
         } catch (Exception $e) {
             return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());

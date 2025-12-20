@@ -12,18 +12,26 @@ class UnitController extends Controller
 {
     /**
      * CUSTOMER - JELAJAHI PROYEK
-     * Menampilkan unit yang tersedia untuk dipesan oleh Customer.
+     * Mengambil data Project dengan perhitungan riil status unit.
      */
     public function jelajahiProyek()
     {
-        // Mengambil unit berstatus 'Tersedia' beserta relasi proyek dan tipe
-        $units = Unit::with(['project', 'tipe'])
-            ->where('status', 'Tersedia') // Filter utama agar sinkron dengan stok asli
-            ->latest()
-            ->get();
+        // PERBAIKAN: Gunakan withCount agar angka status unit dihitung otomatis dari tabel units
+        // Ini memastikan angka Tersedia, Booked, dan Terjual selalu update
+        $projects = Project::withCount([
+            'units as tersedia' => function ($query) {
+                $query->where('status', 'Tersedia');
+            },
+            'units as booked' => function ($query) {
+                $query->where('status', 'Dibooking');
+            },
+            'units as terjual' => function ($query) {
+                $query->where('status', 'Terjual');
+            }
+        ])->latest()->get();
 
-        // Diarahkan ke folder 'project.customer' sesuai struktur folder Anda
-        return view('project.customer.index', compact('units'));
+        // Mengirim variabel 'projects' ke view customer
+        return view('project.customer.index', compact('projects'));
     }
 
     /**
@@ -65,6 +73,7 @@ class UnitController extends Controller
             'project_id' => 'required|exists:projects,id',
             'tipe_id'    => 'required|exists:tipes,id',
             'block'      => 'required|string|max:10',
+            'harga'      => 'required|numeric|min:0', 
             'no_unit'    => [
                 'required', 'string', 'max:10',
                 Rule::unique('units')->where(function ($query) use ($request) {
@@ -73,13 +82,10 @@ class UnitController extends Controller
                 }),
             ],
             'status'     => 'required|in:Tersedia,Dibooking,Terjual'
-        ], [
-            'no_unit.unique' => 'Nomor unit ini sudah terdaftar di blok tersebut.'
         ]);
 
         Unit::create($validated);
 
-        // Langsung redirect ke index untuk menghindari tampilan JSON
         return redirect()->route('admin.unit.index')->with('success', 'Unit berhasil ditambahkan!');
     }
 
@@ -89,7 +95,6 @@ class UnitController extends Controller
     public function edit(Unit $unit)
     {
         $projects = Project::all();
-        // Memastikan tipe sinkron dengan project yang dipilih
         $tipes = Tipe::where('project_id', $unit->project_id)->get();
         
         return view('unit.admin.edit', compact('unit', 'projects', 'tipes'));
@@ -104,6 +109,8 @@ class UnitController extends Controller
             'project_id' => 'required|exists:projects,id',
             'tipe_id'    => 'required|exists:tipes,id',
             'block'      => 'required|string|max:10',
+            'harga'      => 'required|numeric|min:0', 
+            'progres'    => 'required|integer|min:0|max:100', 
             'no_unit'    => [
                 'required', 'string', 'max:10',
                 Rule::unique('units')->ignore($unit->id)->where(function ($query) use ($request) {

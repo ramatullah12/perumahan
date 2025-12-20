@@ -13,30 +13,55 @@ class Project extends Model
         'nama_proyek',
         'lokasi',
         'deskripsi',
-        'total_unit',
-        'tersedia',
-        'booked',
-        'terjual',
-        'gambar', // Ubah menjadi 'thumbnail' jika di database Anda kolomnya bernama thumbnail
+        'total_unit', // Tetap ada jika Anda ingin menentukan kapasitas maksimal manual
+        'gambar', 
         'status',
     ];
 
     /**
      * Relasi ke Unit (One to Many)
-     * Memperbaiki error: Call to undefined method Project::units()
+     * Digunakan untuk menghitung statistik unit secara real-time.
      */
     public function units()
     {
-        // Menghubungkan Project ke Model Unit
-        return $this->hasMany(Unit::class);
+        return $this->hasMany(Unit::class, 'project_id');
     }
 
     /**
      * Relasi ke Booking (One to Many)
-     * Digunakan agar foto proyek bisa dipanggil di dashboard Customer
      */
     public function bookings()
     {
-        return $this->hasMany(Booking::class);
+        return $this->hasMany(Booking::class, 'project_id');
+    }
+
+    /**
+     * SINKRONISASI OTOMATIS:
+     * Menambahkan atribut bantuan (accessors) agar status unit selalu terupdate
+     * saat dipanggil di dashboard Admin maupun Customer.
+     */
+    
+    // Menghitung Unit Tersedia secara otomatis
+    public function getTersediaCountAttribute()
+    {
+        return $this->units()->where('status', 'Tersedia')->count();
+    }
+
+    // Menghitung Unit yang sedang Dibooking
+    public function getBookedCountAttribute()
+    {
+        return $this->units()->where('status', 'Dibooking')->count();
+    }
+
+    // Menghitung Unit yang sudah Terjual
+    public function getTerjualCountAttribute()
+    {
+        return $this->units()->where('status', 'Terjual')->count();
+    }
+
+    // Menghitung Total Unit yang terdaftar di proyek ini
+    public function getTotalCountAttribute()
+    {
+        return $this->units()->count();
     }
 }
