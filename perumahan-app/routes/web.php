@@ -23,7 +23,6 @@ Route::middleware(['auth'])->group(function () {
         return match (Auth::user()->role) {
             'admin'    => redirect()->route('admin.dashboard'),
             'owner'    => redirect()->route('owner.dashboard'),
-            // Memastikan Customer langsung masuk ke daftar pesanan mereka
             'customer' => redirect()->route('customer.booking.index'), 
             default    => redirect()->route('customer.booking.index'),
         };
@@ -52,12 +51,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('get-tipe/{projectId}', [UnitController::class, 'getTipeByProject'])->name('admin.unit.getTipe');
 
         // PROGRES PEMBANGUNAN
-        // Resource ini menyediakan index, create, store, show, edit, update, destroy
+        // Memberikan kontrol penuh admin untuk mengelola riwayat progres unit terjual
         Route::resource('progres', ProgresController::class)->names('admin.progres');
         
-        // Rute eksplisit tambahan untuk halaman edit jika resource tidak terbaca sempurna
-        Route::get('/progres/{id}/edit', [ProgresController::class, 'edit'])->name('admin.progres.edit');
-
         // LAPORAN
         Route::get('/laporan', [LaporanController::class, 'index'])->name('admin.laporan.index');
     });
@@ -74,8 +70,11 @@ Route::middleware(['auth'])->group(function () {
     // CUSTOMER SECTION
     // ======================
     Route::middleware(['role:customer'])->prefix('customer')->group(function () {
-        // Halaman awal customer jika diakses manual
         Route::view('/dashboard', 'dashboard.customer')->name('customer.dashboard');
+        
+        // JELAJAHI PROYEK (UNIT TERSEDIA)
+        // Rute untuk melihat katalog proyek dari UnitController
+        Route::get('/proyek', [UnitController::class, 'jelajahiProyek'])->name('customer.proyek.index');
         
         // PEMESANAN UNIT (BOOKING)
         Route::get('/booking', [BookingController::class, 'indexCustomer'])->name('customer.booking.index');
@@ -84,7 +83,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/get-units/{projectId}', [BookingController::class, 'getUnitsByProject'])->name('customer.booking.getUnits');
         
         // MONITORING PEMBANGUNAN
-        // Menyeragamkan rute agar sinkron dengan Controller indexCustomer
+        // Menampilkan riwayat progres unit yang sudah dibeli customer
         Route::get('/progres', [ProgresController::class, 'indexCustomer'])->name('customer.progres.index');
     });
 
