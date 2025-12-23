@@ -1,4 +1,4 @@
-@extends('dashboard.customer')
+@extends('layout.customer')
 
 @section('content')
 <div class="p-8 bg-slate-50 min-h-screen animate-fade-in">

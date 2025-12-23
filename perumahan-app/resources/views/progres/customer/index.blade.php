@@ -1,4 +1,4 @@
-@extends('dashboard.customer')
+@extends('layout.customer')
 
 @section('content')
 <div style="padding: 30px; font-family: 'Inter', sans-serif; background: #f8fafc; min-height: 100vh;">

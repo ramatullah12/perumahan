@@ -1,4 +1,4 @@
-@extends('dashboard.admin')
+@extends('layout.admin')
 
 @section('content')
 <div class="p-4 md:p-8 bg-[#F9FAFB] min-h-screen">

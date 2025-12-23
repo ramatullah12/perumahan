@@ -1,4 +1,4 @@
-@extends('dashboard.admin')
+@extends('layout.admin')
 
 @section('content')
 <div class="p-8 max-w-4xl mx-auto">

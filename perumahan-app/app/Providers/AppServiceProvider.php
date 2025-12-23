@@ -22,11 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        /**
-         * Mengirim data jumlah notifikasi yang belum dibaca ke layout dashboard customer.
-         * Dengan ini, angka merah pada menu "Notifikasi" akan selalu sinkron dengan database.
-         */
-        View::composer('dashboard.customer', function ($view) {
+        View::composer('layout.customer', function ($view) {
             if (Auth::check()) {
                 $unreadCount = Notification::where('user_id', Auth::id())
                     ->where('is_read', false)

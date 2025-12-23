@@ -1,4 +1,4 @@
-@extends('dashboard.admin')
+@extends('layout.admin')
 
 @section('content')
 <div class="booking-admin-container" style="padding: 20px; position: relative;">

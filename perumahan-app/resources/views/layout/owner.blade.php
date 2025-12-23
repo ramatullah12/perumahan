@@ -94,7 +94,7 @@
     <div class="top-nav d-flex align-items-center justify-content-between">
 
         <div class="d-flex align-items-center">
-            <a class="menu-item active" href="#">Dashboard</a>
+            <a class="menu-item {{ request()->routeIs('owner.dashboard') ? 'active' : '' }}" href="{{ route('owner.dashboard') }}">Overview</a>
             <a class="menu-item" href="#">Analisis penjualan</a>
             <a class="menu-item" href="#">Proses pembangunan</a>
         </div>
