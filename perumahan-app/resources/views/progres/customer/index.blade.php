@@ -16,11 +16,17 @@
 
     @forelse($bookings as $b)
         @php
-            // Ambil progres terbaru dari unit
-            $latest = $b->unit->progres->first(); 
-            // Pastikan persentase tidak melebihi 100 atau kurang dari 0
-            $persentase = $latest->persentase ?? $b->unit->progres_pembangunan ?? 0;
+            /** * PERBAIKAN: Mengambil nilai progres langsung dari kolom unit (integer)
+             * Menghapus ->first() karena 'progres' adalah properti angka, bukan relasi.
+             */
+            $persentase = $b->unit->progres ?? 0;
             $persentase = max(0, min(100, $persentase));
+
+            /** * Karena Anda menggunakan kolom 'progres' sebagai angka, 
+             * jika ingin menampilkan catatan lapangan, kita perlu mengecek relasi histori yang benar.
+             * Di sini kita asumsikan menggunakan data default jika relasi belum diset.
+             */
+            $latestHistory = $b->unit->latestProgres ?? null; 
         @endphp
 
         <div style="background: white; border-radius: 32px; padding: 40px; border: 1px solid #e2e8f0; margin-bottom: 35px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.04); position: relative; overflow: hidden; transition: transform 0.3s ease;">
@@ -49,7 +55,7 @@
             <div style="background: #f8fafc; padding: 30px; border-radius: 24px; border: 1px solid #f1f5f9; margin-bottom: 35px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <span style="color: #475569; font-weight: 800; font-size: 16px;">
-                        Tahap: <span style="color: #1e5eff;">{{ $latest->tahap ?? 'Persiapan Pembangunan' }}</span>
+                        Status: <span style="color: #1e5eff;">{{ $persentase == 100 ? 'Selesai' : 'Tahap Pembangunan' }}</span>
                     </span>
                     <div style="text-align: right;">
                         <span style="color: #1e5eff; background: white; border: 1px solid #d1e9ff; padding: 6px 16px; border-radius: 12px; font-size: 14px; font-weight: 900; box-shadow: 0 2px 4px rgba(30, 94, 255, 0.05);">
@@ -67,7 +73,6 @@
                                 transition: width 2s cubic-bezier(0.34, 1.56, 0.64, 1);
                                 box-shadow: 0 4px 12px rgba(30, 94, 255, 0.3);
                                 position: relative;">
-                        {{-- Efek Kilau --}}
                         <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(rgba(255,255,255,0.2), rgba(255,255,255,0));"></div>
                     </div>
                 </div>
@@ -79,70 +84,42 @@
                 {{-- CATATAN LAPANGAN --}}
                 <div>
                     <h5 style="font-size: 15px; font-weight: 900; color: #1e293b; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-clipboard-list" style="color: #1e5eff;"></i> Catatan Lapangan Terakhir:
+                        <i class="fas fa-clipboard-list" style="color: #1e5eff;"></i> Catatan Pembangunan:
                     </h5>
                     <div style="background: #ffffff; padding: 25px; border-radius: 20px; border: 1px solid #f1f5f9; min-height: 100px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);">
                         <p style="margin: 0; font-size: 15px; color: #64748b; line-height: 1.7; font-style: italic;">
-                            "{{ $latest->keterangan ?? 'Tim kami sedang memproses persiapan material di lokasi. Pembaruan data foto akan dilakukan segera setelah progres fisik terlihat di lapangan.' }}"
+                            "{{ $latestHistory->keterangan ?? 'Tim kami sedang memproses pembangunan di lokasi. Pembaruan data foto akan dilakukan segera setelah progres fisik terlihat di lapangan.' }}"
                         </p>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 6px; margin-top: 15px; color: #94a3b8;">
-                        <i class="far fa-clock" style="font-size: 13px;"></i>
-                        <span style="font-size: 12px; font-weight: 700;">Update Terakhir: {{ $latest ? $latest->created_at->translatedFormat('d F Y, H:i') : '-' }}</span>
                     </div>
                 </div>
 
                 {{-- FOTO DOKUMENTASI --}}
                 <div>
-    <h5 style="font-size: 15px; font-weight: 900; color: #1e293b; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-        <i class="fas fa-camera" style="color: #1e5eff;"></i> Foto Dokumentasi Terbaru:
-    </h5>
-    <div style="position: relative;">
-        {{-- SINKRONISASI: Mengambil foto dari riwayat progres terbaru milik unit --}}
-        @php
-            $latestProgress = $b->unit->progres->first(); 
-        @endphp
-
-        @if($latestProgress && $latestProgress->foto)
-            <a href="{{ asset('storage/' . $latestProgress->foto) }}" target="_blank" style="text-decoration: none; display: block; border-radius: 20px; overflow: hidden; border: 4px solid white; box-shadow: 0 15px 30px -5px rgba(0,0,0,0.12); transition: transform 0.3s ease;">
-                <img src="{{ asset('storage/' . $latestProgress->foto) }}" 
-                     style="width: 100%; height: 180px; object-fit: cover; transition: transform 0.5s ease;"
-                     onmouseover="this.style.transform='scale(1.08)'"
-                     onmouseout="this.style.transform='scale(1)'"
-                     alt="Dokumentasi Pembangunan {{ $b->unit->no_unit }}">
-                
-                {{-- Overlay Zoom --}}
-                <div style="position: absolute; bottom: 15px; right: 15px; background: rgba(30, 94, 255, 0.8); color: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
-                    <i class="fas fa-search-plus" style="font-size: 12px;"></i>
+                    <h5 style="font-size: 15px; font-weight: 900; color: #1e293b; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-camera" style="color: #1e5eff;"></i> Dokumentasi Terbaru:
+                    </h5>
+                    <div style="position: relative;">
+                        @if($latestHistory && $latestHistory->foto)
+                            <a href="{{ asset('storage/' . $latestHistory->foto) }}" target="_blank" style="text-decoration: none; display: block; border-radius: 20px; overflow: hidden; border: 4px solid white; box-shadow: 0 15px 30px -5px rgba(0,0,0,0.12);">
+                                <img src="{{ asset('storage/' . $latestHistory->foto) }}" 
+                                     style="width: 100%; height: 180px; object-fit: cover;"
+                                     alt="Dokumentasi Unit">
+                            </a>
+                        @else
+                            <div style="width: 100%; height: 180px; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #cbd5e1;">
+                                <i class="fas fa-hard-hat" style="font-size: 40px; margin-bottom: 12px; opacity: 0.5;"></i>
+                                <span style="font-size: 13px; font-weight: 800; color: #94a3b8;">Tahap Persiapan</span>
+                            </div>
+                        @endif
+                    </div>
                 </div>
-            </a>
-        @else
-            {{-- TAMPILAN JIKA ADMIN BELUM UPLOAD FOTO --}}
-            <div style="width: 100%; height: 180px; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #cbd5e1; transition: 0.3s;">
-                <i class="fas fa-images" style="font-size: 40px; margin-bottom: 12px; opacity: 0.5;"></i>
-                <span style="font-size: 13px; font-weight: 800; color: #94a3b8;">Belum Ada Foto Dokumentasi</span>
-                <p style="font-size: 10px; color: #cbd5e1; margin-top: 5px; font-weight: 600;">Update dari admin akan muncul di sini</p>
             </div>
-        @endif
-    </div>
-</div>
-            </div>
-
         </div>
     @empty
         <div style="text-align: center; padding: 100px 40px; background: white; border-radius: 48px; border: 3px dashed #cbd5e1; margin-top: 20px;">
-            <div style="background: #eff6ff; width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px;">
-                <span style="font-size: 60px;">🏢</span>
-            </div>
-            <h3 style="color: #1e293b; font-weight: 900; font-size: 26px; margin-bottom: 15px;">Mulai Perjalanan Hunian Anda</h3>
-            <p style="color: #64748b; font-size: 16px; max-width: 450px; margin: 0 auto; line-height: 1.8;">Data pembangunan akan muncul di sini secara otomatis setelah **Status Pemesanan (Booking)** Anda dikonfirmasi oleh tim admin kami.</p>
-            <a href="{{ route('customer.booking.index') }}" style="display: inline-block; margin-top: 35px; background: #1e5eff; color: white; padding: 16px 40px; border-radius: 20px; text-decoration: none; font-weight: 800; font-size: 15px; box-shadow: 0 15px 30px -10px rgba(30, 94, 255, 0.4); transition: all 0.3s;">
-                <i class="fas fa-search-location" style="margin-right: 8px;"></i> Lihat Status Booking
-            </a>
+            <h3 style="color: #1e293b; font-weight: 900; font-size: 26px; margin-bottom: 15px;">Belum Ada Data Progres</h3>
+            <p style="color: #64748b; font-size: 16px; max-width: 450px; margin: 0 auto;">Pemesanan Anda sedang diverifikasi. Data pembangunan akan muncul di sini segera.</p>
         </div>
     @endforelse
 </div>
-
-{{-- Tambahkan script ini jika Anda belum memilikinya di layout utama untuk ikon --}}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 @endsection

@@ -69,6 +69,7 @@
             <a class="menu-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}">Overview</a>
             <a class="menu-item {{ request()->is('admin/booking*') ? 'active' : '' }}" href="{{ route('admin.booking.index') }}">Booking Management</a>
             <a class="menu-item {{ request()->is('admin/project*') ? 'active' : '' }}" href="{{ route('admin.project.index') }}">Manajemen Proyek</a>
+            <a class="menu-item {{ request()->is('admin/tipe*') ? 'active' : '' }}" href="{{ route('admin.tipe.index') }}">Manajemen Tipe Rumah</a>
             <a class="menu-item {{ request()->is('admin/unit*') ? 'active' : '' }}" href="{{ route('admin.unit.index') }}">Manajemen Unit</a>
             <a class="menu-item {{ request()->is('admin/progres*') ? 'active' : '' }}" href="{{ route('admin.progres.index') }}">Update Progres</a>
             <a class="menu-item {{ request()->is('admin/laporan*') ? 'active' : '' }}" href="{{ route('admin.laporan.index') }}">Laporan</a>

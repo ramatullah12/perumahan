@@ -13,9 +13,13 @@ class Project extends Model
         'nama_proyek',
         'lokasi',
         'deskripsi',
-        'total_unit', // Tetap ada jika Anda ingin menentukan kapasitas maksimal manual
+        'total_unit', 
         'gambar', 
         'status',
+        // WAJIB DITAMBAHKAN: Agar Controller bisa mengisi nilai awal
+        'tersedia',
+        'booked',
+        'terjual',
     ];
 
     /**
@@ -36,9 +40,9 @@ class Project extends Model
     }
 
     /**
-     * SINKRONISASI OTOMATIS:
-     * Menambahkan atribut bantuan (accessors) agar status unit selalu terupdate
-     * saat dipanggil di dashboard Admin maupun Customer.
+     * ACCESSORS (STATISTIK REAL-TIME):
+     * Memudahkan pemanggilan data di Blade tanpa query manual.
+     * Contoh: $project->tersedia_count
      */
     
     // Menghitung Unit Tersedia secara otomatis
@@ -59,7 +63,7 @@ class Project extends Model
         return $this->units()->where('status', 'Terjual')->count();
     }
 
-    // Menghitung Total Unit yang terdaftar di proyek ini
+    // Menghitung Total Unit yang terdaftar di proyek ini secara riil
     public function getTotalCountAttribute()
     {
         return $this->units()->count();

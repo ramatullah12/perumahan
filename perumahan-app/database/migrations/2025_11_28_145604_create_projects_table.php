@@ -14,10 +14,14 @@ return new class extends Migration
             $table->string('lokasi');
             $table->text('deskripsi');
             $table->integer('total_unit');
-            $table->integer('tersedia');
+            
+            // PERBAIKAN: Tambahkan default(0) agar tidak error saat disimpan
+            // atau pastikan Controller selalu mengisi nilai ini
+            $table->integer('tersedia')->default(0);
             $table->integer('booked')->default(0);
             $table->integer('terjual')->default(0);
-            $table->string('gambar'); // Menyimpan path foto
+            
+            $table->string('gambar'); 
             $table->string('status')->default('Sedang Berjalan');
             $table->timestamps();
         });

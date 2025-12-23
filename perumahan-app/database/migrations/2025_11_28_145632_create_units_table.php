@@ -23,9 +23,23 @@ return new class extends Migration
             // Spesifikasi posisi unit
             $table->string('block'); 
             $table->string('no_unit'); 
+
+            /**
+             * PERBAIKAN: Hapus ->after('no_unit')
+             * Database akan otomatis meletakkan kolom 'harga' setelah 'no_unit' 
+             * karena urutan penulisannya di sini.
+             */
+            $table->decimal('harga', 15, 2)->default(0);
             
             // Status unit
             $table->enum('status', ['Tersedia', 'Dibooking', 'Terjual'])->default('Tersedia');
+
+            /**
+             * PERBAIKAN: Hapus ->after('status')
+             * Kolom 'progres' akan otomatis berada setelah 'status'.
+             * Kolom ini wajib ada agar dashboard Owner tidak error.
+             */
+            $table->integer('progres')->default(0);
             
             $table->timestamps();
         });

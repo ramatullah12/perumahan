@@ -21,11 +21,13 @@ class Unit extends Model
         'block',
         'no_unit',
         'status',
+        'progres', 
+        // TAMBAHKAN kolom ini agar harga yang diinput di form tersimpan ke DB
+        'harga', 
     ];
 
     /**
      * Relasi ke Model Project.
-     * Satu unit dimiliki oleh satu proyek.
      */
     public function project(): BelongsTo
     {
@@ -34,7 +36,6 @@ class Unit extends Model
 
     /**
      * Relasi ke Model Tipe.
-     * Satu unit memiliki satu tipe spesifik.
      */
     public function tipe(): BelongsTo
     {
@@ -46,8 +47,7 @@ class Unit extends Model
     // =========================================================
 
     /**
-     * Relasi untuk mengambil progres terbaru dari unit ini.
-     * Menggunakan latestOfMany() untuk efisiensi pengambilan data terakhir.
+     * Relasi progres terbaru (untuk efisiensi).
      */
     public function latestProgres(): HasOne
     {
@@ -55,19 +55,35 @@ class Unit extends Model
     }
 
     /**
-     * Relasi ke semua histori progres pembangunan.
+     * Relasi histori progres pembangunan.
      */
     public function progres(): HasMany
     {
-        return $this->hasMany(Progres::class, 'unit_id');
+        return $this->hasMany(Progres::class, 'unit_id')->latest();
     }
 
     /**
-     * Relasi ke Booking untuk mendapatkan data pembeli.
-     * Digunakan untuk menampilkan nama customer pada dashboard progres.
+     * Relasi ke Booking.
      */
     public function booking(): HasOne
     {
         return $this->hasOne(Booking::class, 'unit_id');
+    }
+
+    /**
+     * Accessor untuk nama unit yang rapi.
+     */
+    public function getNamaUnitAttribute(): string
+    {
+        return "Blok {$this->block} No. {$this->no_unit}";
+    }
+    
+    /**
+     * Accessor untuk format harga rupiah.
+     * Contoh di Blade: {{ $unit->harga_formatted }}
+     */
+    public function getHargaFormattedAttribute(): string
+    {
+        return "Rp " . number_format($this->harga, 0, ',', '.');
     }
 }
