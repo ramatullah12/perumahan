@@ -58,7 +58,10 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:owner'])->prefix('owner')->as('owner.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'owner'])->name('dashboard');
         
-        // Memastikan rute progres terdaftar untuk owner
+        // Fitur Analisis Penjualan (PENTING)
+        Route::get('/analisis', [LaporanController::class, 'analisisOwner'])->name('analisis.index');
+        
+        // Monitoring Progres Pembangunan untuk Owner
         Route::get('/progres', [ProgresController::class, 'indexOwner'])->name('progres.index');
         
         Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');

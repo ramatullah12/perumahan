@@ -8,16 +8,25 @@ use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-// TAMBAHKAN IMPORT PDF DI BAWAH INI
 use Barryvdh\DomPDF\Facade\Pdf; 
 
 class LaporanController extends Controller
 {
+    /**
+     * ADMIN - Halaman Laporan Utama
+     */
     public function index()
     {
         // 1. Statistik Ringkasan (Cards)
-        $totalRevenue = Booking::where('status', 'disetujui')->sum(DB::raw('100000000')); 
-        $projectedRevenue = Booking::where('status', 'pending')->count() * 100000000;
+        // Menggunakan harga asli dari unit yang disetujui (bukan hardcode angka)
+        $totalRevenue = Booking::where('status', 'disetujui')
+            ->join('units', 'bookings.unit_id', '=', 'units.id')
+            ->sum('units.harga');
+
+        $projectedRevenue = Booking::where('status', 'pending')
+            ->join('units', 'bookings.unit_id', '=', 'units.id')
+            ->sum('units.harga');
+
         $unitTerjual = Unit::where('status', 'Terjual')->count();
         $customerAktif = User::where('role', 'customer')->count();
 
@@ -46,19 +55,45 @@ class LaporanController extends Controller
     }
 
     /**
-     * FUNGSI EXPORT PDF (Tambahkan ini agar error hilang)
+     * OWNER - Fitur Analisis Penjualan Khusus Owner
+     * PERBAIKAN: Method ini wajib ada agar rute owner.analisis.index tidak error
+     */
+    public function analisisOwner()
+    {
+        // Total Omzet Riil (Unit Terjual)
+        $totalPendapatan = Unit::where('status', 'Terjual')->sum('harga');
+
+        // Statistik Stok untuk Chart
+        $stats = [
+            'total_units' => Unit::count(),
+            'terjual'     => Unit::where('status', 'Terjual')->count(),
+            'tersedia'    => Unit::where('status', 'Tersedia')->count(),
+            'booked'      => Unit::where('status', 'Dibooking')->count(),
+        ];
+
+        // Performa Penjualan per Proyek (Volume)
+        $proyekPerforma = Project::withCount(['units as total_unit', 'units as terjual' => function($q) {
+            $q->where('status', 'Terjual');
+        }])->get();
+
+        return view('laporan.owner.analisis', compact('totalPendapatan', 'stats', 'proyekPerforma'));
+    }
+
+    /**
+     * EXPORT PDF - Mendukung Laporan Admin & Owner
      */
     public function exportPDF()
     {
-        // Ambil data untuk laporan PDF
-        $totalRevenue = Booking::where('status', 'disetujui')->sum(DB::raw('100000000'));
+        $totalRevenue = Booking::where('status', 'disetujui')
+            ->join('units', 'bookings.unit_id', '=', 'units.id')
+            ->sum('units.harga');
+            
         $unitTerjual = Unit::where('status', 'Terjual')->count();
+        
         $projects = Project::withCount([
             'units as sold_count' => function($q) { $q->where('status', 'Terjual'); }
         ])->get();
 
-        // Render view ke PDF
-        // Pastikan Anda sudah membuat file resources/views/laporan/admin/pdf.blade.php
         $pdf = Pdf::loadView('laporan.admin.pdf', compact('totalRevenue', 'unitTerjual', 'projects'))
                   ->setPaper('a4', 'portrait');
 
