@@ -95,8 +95,8 @@
 
         <div class="d-flex align-items-center">
             <a class="menu-item {{ request()->routeIs('owner.dashboard') ? 'active' : '' }}" href="{{ route('owner.dashboard') }}">Overview</a>
-            <a class="menu-item" href="#">Analisis penjualan</a>
-            <a class="menu-item" href="#">Proses pembangunan</a>
+            <a class="menu-item {{ request()->is('owner/analisis*') ? 'active' : '' }}" href="{{ route('owner.progres.index') }}">Analisis penjualan</a>
+            <a class="menu-item {{ request()->is('owner/progres*') ? 'active' : '' }}" href="{{ route('owner.progres.index') }}">Proses Pembangunan</a>           
         </div>
     </div>
 

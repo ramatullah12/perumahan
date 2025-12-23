@@ -8,6 +8,7 @@ use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ProgresController extends Controller
 {
@@ -18,9 +19,25 @@ class ProgresController extends Controller
     {
         $units = Unit::with(['project', 'latestProgres', 'booking.user'])
             ->whereIn('status', ['Dibooking', 'Terjual'])
+            ->latest()
             ->get();
 
         return view('progres.admin.index', compact('units'));
+    }
+
+    /**
+     * OWNER - LIHAT SELURUH PEMBANGUNAN PROYEK
+     * PERBAIKAN: Menambahkan method ini agar rute owner tidak error.
+     */
+    public function indexOwner()
+    {
+        // Owner melihat semua unit yang sudah mulai dibangun (ada progres)
+        $units = Unit::with(['project', 'latestProgres'])
+            ->where('progres', '>', 0)
+            ->latest()
+            ->get();
+
+        return view('progres.owner.index', compact('units'));
     }
 
     /**
@@ -35,7 +52,6 @@ class ProgresController extends Controller
             ->where('status', 'disetujui')
             ->get();
 
-        // Pastikan nama folder view adalah 'customer'
         return view('progres.customer.index', compact('bookings'));
     }
 
@@ -44,7 +60,6 @@ class ProgresController extends Controller
      */
     public function create(Request $request)
     {
-        // Menangkap unit_id dari parameter URL
         $unit_id = $request->query('unit_id');
         $unit = Unit::with('project')->findOrFail($unit_id);
         
@@ -52,8 +67,7 @@ class ProgresController extends Controller
     }
 
     /**
-     * ADMIN - SIMPAN UPDATE PROGRES (Fungsi Store)
-     * Digunakan dari create.blade.php
+     * ADMIN - SIMPAN UPDATE PROGRES
      */
     public function store(Request $request)
     {
@@ -65,32 +79,33 @@ class ProgresController extends Controller
             'foto'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        $fotoPath = null;
-        if ($request->hasFile('foto')) {
-            // Simpan ke folder public agar bisa di-link
-            $fotoPath = $request->file('foto')->store('progres_pembangunan', 'public');
-        }
+        // Gunakan Transaction agar sinkronisasi data terjamin aman
+        DB::transaction(function () use ($request) {
+            $fotoPath = null;
+            if ($request->hasFile('foto')) {
+                $fotoPath = $request->file('foto')->store('progres_pembangunan', 'public');
+            }
 
-        // 1. Simpan catatan ke tabel riwayat (progres)
-        Progres::create([
-            'unit_id'    => $request->unit_id,
-            'persentase' => $request->persentase,
-            'tahap'      => $request->tahap,
-            'keterangan' => $request->keterangan,
-            'foto'       => $fotoPath,
-        ]);
+            // 1. Simpan riwayat progres
+            Progres::create([
+                'unit_id'    => $request->unit_id,
+                'persentase' => $request->persentase,
+                'tahap'      => $request->tahap,
+                'keterangan' => $request->keterangan,
+                'foto'       => $fotoPath,
+            ]);
 
-        // 2. SINKRONISASI: Update kolom 'progres' di tabel 'units' agar dashboard berubah
-        Unit::where('id', $request->unit_id)->update([
-            'progres' => $request->persentase
-        ]);
+            // 2. SINKRONISASI: Update kolom utama di tabel units
+            Unit::where('id', $request->unit_id)->update([
+                'progres' => $request->persentase
+            ]);
+        });
 
-        // 3. Redirect kembali ke monitoring agar tidak muncul JSON
         return redirect()->route('admin.progres.index')->with('success', 'Progres pembangunan berhasil diperbarui!');
     }
 
     /**
-     * ADMIN - HALAMAN EDIT PROGRES
+     * ADMIN - HALAMAN EDIT PROGRES TERAKHIR
      */
     public function edit($id)
     {
@@ -99,7 +114,7 @@ class ProgresController extends Controller
     }
 
     /**
-     * ADMIN - PROSES UPDATE DATA (DARI HALAMAN EDIT)
+     * ADMIN - PROSES UPDATE DATA
      */
     public function update(Request $request, $id)
     {
@@ -110,28 +125,30 @@ class ProgresController extends Controller
             'foto'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        $unit = Unit::findOrFail($id);
-        
-        // Ambil foto lama jika tidak ada unggahan baru
-        $fotoPath = $unit->latestProgres->foto ?? null;
+        DB::transaction(function () use ($request, $id) {
+            $unit = Unit::findOrFail($id);
+            $fotoPath = $unit->latestProgres->foto ?? null;
 
-        if ($request->hasFile('foto')) {
-            $fotoPath = $request->file('foto')->store('progres_pembangunan', 'public');
-        }
+            if ($request->hasFile('foto')) {
+                // Hapus foto lama jika ada
+                if ($fotoPath) {
+                    Storage::disk('public')->delete($fotoPath);
+                }
+                $fotoPath = $request->file('foto')->store('progres_pembangunan', 'public');
+            }
 
-        // 1. Simpan sebagai riwayat baru
-        Progres::create([
-            'unit_id'    => $id,
-            'persentase' => $request->persentase,
-            'tahap'      => $request->tahap,
-            'keterangan' => $request->keterangan,
-            'foto'       => $fotoPath,
-        ]);
+            Progres::create([
+                'unit_id'    => $id,
+                'persentase' => $request->persentase,
+                'tahap'      => $request->tahap,
+                'keterangan' => $request->keterangan,
+                'foto'       => $fotoPath,
+            ]);
 
-        // 2. SINKRONISASI: Update kolom 'progres' agar monitoring berubah
-        $unit->update([
-            'progres' => $request->persentase
-        ]);
+            $unit->update([
+                'progres' => $request->persentase
+            ]);
+        });
 
         return redirect()->route('admin.progres.index')->with('success', 'Perubahan berhasil disimpan!');
     }
