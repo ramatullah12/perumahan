@@ -14,20 +14,20 @@ class Unit extends Model
 
     /**
      * Kolom yang dapat diisi secara massal (mass assignable).
+     * PERBAIKAN: Mengembalikan 'nomor_unit' menjadi 'no_unit'.
      */
     protected $fillable = [
         'project_id',
         'tipe_id',
         'block',
-        'no_unit',
+        'no_unit', // Diubah kembali ke no_unit sesuai instruksi Anda
         'status',
         'progres', 
-        // TAMBAHKAN kolom ini agar harga yang diinput di form tersimpan ke DB
         'harga', 
     ];
 
     /**
-     * Relasi ke Model Project.
+     * Relasi ke Model Project (Belongs To).
      */
     public function project(): BelongsTo
     {
@@ -36,10 +36,11 @@ class Unit extends Model
 
     /**
      * Relasi ke Model Tipe.
+     * Menggunakan 'tipe::class' karena nama file model Anda adalah tipe.php.
      */
     public function tipe(): BelongsTo
     {
-        return $this->belongsTo(Tipe::class, 'tipe_id');
+        return $this->belongsTo(tipe::class, 'tipe_id');
     }
 
     // =========================================================
@@ -47,7 +48,7 @@ class Unit extends Model
     // =========================================================
 
     /**
-     * Relasi progres terbaru (untuk efisiensi).
+     * Relasi progres terbaru.
      */
     public function latestProgres(): HasOne
     {
@@ -57,7 +58,7 @@ class Unit extends Model
     /**
      * Relasi histori progres pembangunan.
      */
-    public function progres(): HasMany
+    public function progres_history(): HasMany 
     {
         return $this->hasMany(Progres::class, 'unit_id')->latest();
     }
@@ -72,6 +73,7 @@ class Unit extends Model
 
     /**
      * Accessor untuk nama unit yang rapi.
+     * PERBAIKAN: Menggunakan $this->no_unit.
      */
     public function getNamaUnitAttribute(): string
     {
@@ -79,8 +81,8 @@ class Unit extends Model
     }
     
     /**
-     * Accessor untuk format harga rupiah.
-     * Contoh di Blade: {{ $unit->harga_formatted }}
+     * Accessor untuk format harga rupiah yang profesional.
+     * Contoh di Blade: {{ $unit->harga_formatted }}.
      */
     public function getHargaFormattedAttribute(): string
     {

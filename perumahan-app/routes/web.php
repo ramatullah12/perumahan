@@ -9,18 +9,26 @@ use App\Http\Controllers\ProgresController;
 use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\DashboardController; 
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\LandingController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// =====================================
+// PUBLIC ACCESS (GUEST & ALL ROLES)
+// =====================================
+// Halaman depan yang menampilkan statistik dan daftar proyek
+Route::get('/', [LandingController::class, 'index'])->name('welcome');
 
-// =====================================
-// REDIRECT DASHBOARD BERDASARKAN ROLE
-// =====================================
+// Rute Detail Proyek: Menampilkan spesifikasi, tipe, dan inventaris unit
+Route::get('/proyek/detail/{id}', [LandingController::class, 'show'])->name('proyek.detail');
+
+
 Route::middleware(['auth'])->group(function () {
 
+    // =====================================
+    // REDIRECT DASHBOARD BERDASARKAN ROLE
+    // =====================================
     Route::get('/dashboard', function () {
         return match (Auth::user()->role) {
             'admin'    => redirect()->route('admin.dashboard'),
@@ -58,14 +66,14 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:owner'])->prefix('owner')->as('owner.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'owner'])->name('dashboard');
         
-        // Fitur Analisis Penjualan (PENTING)
         Route::get('/analisis', [LaporanController::class, 'analisisOwner'])->name('analisis.index');
-        
-        // Monitoring Progres Pembangunan untuk Owner
         Route::get('/progres', [ProgresController::class, 'indexOwner'])->name('progres.index');
         
         Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
         Route::get('/laporan/export-pdf', [LaporanController::class, 'exportPDF'])->name('laporan.export');
+
+        Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        Route::patch('/users/{user}/toggle-admin', [UserController::class, 'toggleAdmin'])->name('users.toggleAdmin');
     });
 
     // =====================================

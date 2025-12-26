@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role', // PERBAIKAN: Tambahkan kolom role agar bisa di-update
     ];
 
     /**

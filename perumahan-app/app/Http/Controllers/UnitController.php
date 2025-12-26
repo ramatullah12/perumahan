@@ -26,21 +26,6 @@ class UnitController extends Controller
         }
     }
 
-    /**
-     * CUSTOMER: Menampilkan daftar proyek beserta statistik unitnya.
-     * PERBAIKAN: Method ini wajib ada agar halaman customer tidak error 500.
-     */
-    public function jelajahiProyek()
-    {
-        $projects = Project::withCount([
-            'units as tersedia_count' => fn($q) => $q->where('status', 'Tersedia'),
-            'units as booked_count'   => fn($q) => $q->where('status', 'Dibooking'),
-            'units as terjual_count'  => fn($q) => $q->where('status', 'Terjual')
-        ])->latest()->get();
-
-        return view('project.customer.index', compact('projects'));
-    }
-
     public function index(Request $request)
     {
         $projects = Project::all();
@@ -55,12 +40,13 @@ class UnitController extends Controller
 
     public function store(Request $request)
     {
+        // PERBAIKAN: Menggunakan kembali no_unit sesuai instruksi terakhir Anda
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
             'tipe_id'    => 'required|exists:tipes,id',
             'block'      => 'required|string|max:10',
             'harga'      => 'required|numeric|min:0', 
-            'no_unit'    => [
+            'no_unit'    => [ // Kembali ke no_unit
                 'required', 'string', 'max:10',
                 Rule::unique('units')->where(fn($q) => 
                     $q->where('project_id', $request->project_id)->where('block', $request->block)
@@ -71,6 +57,7 @@ class UnitController extends Controller
 
         DB::transaction(function () use ($validated, $request) {
             $validated['progres'] = 0; 
+            // Unit::create akan mencari kolom 'no_unit' di database
             Unit::create($validated);
             $this->syncProjectStock($request->project_id);
         });
@@ -78,25 +65,18 @@ class UnitController extends Controller
         return redirect()->route('admin.unit.index')->with('success', 'Unit berhasil ditambahkan!');
     }
 
-    public function edit(Unit $unit)
-    {
-        $projects = Project::all();
-        $tipes = Tipe::where('project_id', $unit->project_id)->get();
-        
-        return view('unit.admin.edit', compact('unit', 'projects', 'tipes'));
-    }
-
     public function update(Request $request, Unit $unit)
     {
         $oldProjectId = $unit->project_id; 
 
+        // PERBAIKAN: Menggunakan kembali no_unit
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
             'tipe_id'    => 'required|exists:tipes,id',
             'block'      => 'required|string|max:10',
             'harga'      => 'required|numeric|min:0', 
             'progres'    => 'required|integer|min:0|max:100', 
-            'no_unit'    => [
+            'no_unit'    => [ // Kembali ke no_unit
                 'required', 'string', 'max:10',
                 Rule::unique('units')->ignore($unit->id)->where(fn($q) => 
                     $q->where('project_id', $request->project_id)->where('block', $request->block)

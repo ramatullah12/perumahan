@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany; // Tambahkan ini
 
 class Project extends Model
 {
@@ -16,17 +17,25 @@ class Project extends Model
         'total_unit', 
         'gambar', 
         'status',
-        // WAJIB DITAMBAHKAN: Agar Controller bisa mengisi nilai awal
         'tersedia',
         'booked',
         'terjual',
     ];
 
     /**
-     * Relasi ke Unit (One to Many)
-     * Digunakan untuk menghitung statistik unit secara real-time.
+     * PENTING: Relasi ke Tipe (One to Many)
+     * Ini memperbaiki error RelationNotFoundException
      */
-    public function units()
+    public function tipes(): HasMany
+    {
+        // Pastikan nama file model Anda adalah tipe.php (huruf kecil)
+        return $this->hasMany(tipe::class, 'project_id');
+    }
+
+    /**
+     * Relasi ke Unit (One to Many)
+     */
+    public function units(): HasMany
     {
         return $this->hasMany(Unit::class, 'project_id');
     }
@@ -34,18 +43,17 @@ class Project extends Model
     /**
      * Relasi ke Booking (One to Many)
      */
-    public function bookings()
+    public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class, 'project_id');
     }
 
     /**
      * ACCESSORS (STATISTIK REAL-TIME):
-     * Memudahkan pemanggilan data di Blade tanpa query manual.
-     * Contoh: $project->tersedia_count
+     * Digunakan untuk dashboard ketersediaan unit di halaman detail
      */
     
-    // Menghitung Unit Tersedia secara otomatis
+    // Menghitung Unit Tersedia
     public function getTersediaCountAttribute()
     {
         return $this->units()->where('status', 'Tersedia')->count();
@@ -63,7 +71,7 @@ class Project extends Model
         return $this->units()->where('status', 'Terjual')->count();
     }
 
-    // Menghitung Total Unit yang terdaftar di proyek ini secara riil
+    // Menghitung Total Unit yang terdaftar secara riil
     public function getTotalCountAttribute()
     {
         return $this->units()->count();
