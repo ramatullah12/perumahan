@@ -27,11 +27,10 @@ class ProgresController extends Controller
 
     /**
      * OWNER - LIHAT SELURUH PEMBANGUNAN PROYEK
-     * PERBAIKAN: Menambahkan method ini agar rute owner tidak error.
      */
     public function indexOwner()
     {
-        // Owner melihat semua unit yang sudah mulai dibangun (ada progres)
+        // Tetap menggunakan kolom 'progres' untuk filter angka persentase
         $units = Unit::with(['project', 'latestProgres'])
             ->where('progres', '>', 0)
             ->latest()
@@ -45,7 +44,10 @@ class ProgresController extends Controller
      */
     public function indexCustomer()
     {
-        $bookings = Booking::with(['unit.project', 'unit.progres' => function($query) {
+        /** * PERBAIKAN: Mengubah 'unit.progres' menjadi 'unit.progres_history' 
+         * agar sesuai dengan fungsi di model Unit.php Anda.
+         */
+        $bookings = Booking::with(['unit.project', 'unit.progres_history' => function($query) {
                 $query->latest(); 
             }])
             ->where('user_id', Auth::id())
@@ -79,14 +81,13 @@ class ProgresController extends Controller
             'foto'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        // Gunakan Transaction agar sinkronisasi data terjamin aman
         DB::transaction(function () use ($request) {
             $fotoPath = null;
             if ($request->hasFile('foto')) {
                 $fotoPath = $request->file('foto')->store('progres_pembangunan', 'public');
             }
 
-            // 1. Simpan riwayat progres
+            // 1. Simpan riwayat progres ke tabel 'progres'
             Progres::create([
                 'unit_id'    => $request->unit_id,
                 'persentase' => $request->persentase,
@@ -95,7 +96,7 @@ class ProgresController extends Controller
                 'foto'       => $fotoPath,
             ]);
 
-            // 2. SINKRONISASI: Update kolom utama di tabel units
+            // 2. SINKRONISASI: Update kolom 'progres' di tabel 'units'
             Unit::where('id', $request->unit_id)->update([
                 'progres' => $request->persentase
             ]);
@@ -127,10 +128,11 @@ class ProgresController extends Controller
 
         DB::transaction(function () use ($request, $id) {
             $unit = Unit::findOrFail($id);
+            
+            // Mengambil foto dari relasi terbaru
             $fotoPath = $unit->latestProgres->foto ?? null;
 
             if ($request->hasFile('foto')) {
-                // Hapus foto lama jika ada
                 if ($fotoPath) {
                     Storage::disk('public')->delete($fotoPath);
                 }

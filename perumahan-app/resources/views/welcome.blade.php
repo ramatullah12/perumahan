@@ -214,7 +214,7 @@
                     <div class="stats-icon stats-3 d-none d-sm-block"><i class="bi bi-geo-alt-fill"></i></div>
                     <div>
                         <div class="fw-semibold text-muted small text-uppercase">Lokasi Utama</div>
-                        <div class="fw-bold fs-4 text-warning text-truncate">{{ $lokasiUtama }}</div>
+                        <div class="fw-bold fs-4 text-warning text-truncate">Sumatra Selatan, Palembang</div>
                     </div>
                 </div>
             </div>
@@ -267,7 +267,7 @@
                 <h3 class="fw-bold mb-4">Lokasi Kami</h3>
                 <div class="rounded-5 overflow-hidden shadow-lg border-0">
                     <iframe width="100%" height="400" 
-                        src="https://maps.google.com/maps?q=Perum%20Green%20Hayyat%20Regency%20Palembang&t=&z=13&ie=UTF8&iwloc=&output=embed" 
+                        src="https://maps.google.com/maps?q=-2.9349269722222227,104.8554916111111&ie=UTF8&iwloc=&output=embed" 
                         style="border:0;" allowfullscreen="" loading="lazy"></iframe>
                 </div>
             </div>

@@ -17,13 +17,16 @@
     </head>
     <body class="font-sans text-gray-900 antialiased bg-slate-50">
         
-        @if(request()->routeIs('login') || request()->routeIs('register'))
-            <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-slate-100">
+        {{-- PERBAIKAN: Menambahkan route password.request ke dalam kondisi kotak tengah --}}
+        @if(request()->routeIs('login') || request()->routeIs('register') || request()->routeIs('password.request'))
+            <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-slate-100 p-4">
+                {{-- Container Kotak Tengah dengan Maksimal Lebar sm:max-w-md --}}
                 <div class="w-full sm:max-w-md mt-6 px-10 py-12 bg-white shadow-2xl overflow-hidden sm:rounded-[2rem] border border-slate-100">
                     {{ $slot }}
                 </div>
             </div>
         @else
+            {{-- Tampilan Full Width untuk halaman detail proyek --}}
             <div class="min-h-screen">
                 <main>
                     {{ $slot }}

@@ -14,13 +14,13 @@ class Unit extends Model
 
     /**
      * Kolom yang dapat diisi secara massal (mass assignable).
-     * PERBAIKAN: Mengembalikan 'nomor_unit' menjadi 'no_unit'.
+     * Memastikan 'no_unit' konsisten dengan database.
      */
     protected $fillable = [
         'project_id',
         'tipe_id',
         'block',
-        'no_unit', // Diubah kembali ke no_unit sesuai instruksi Anda
+        'no_unit', 
         'status',
         'progres', 
         'harga', 
@@ -36,7 +36,6 @@ class Unit extends Model
 
     /**
      * Relasi ke Model Tipe.
-     * Menggunakan 'tipe::class' karena nama file model Anda adalah tipe.php.
      */
     public function tipe(): BelongsTo
     {
@@ -48,7 +47,16 @@ class Unit extends Model
     // =========================================================
 
     /**
-     * Relasi progres terbaru.
+     * PERBAIKAN KRUSIAL: Menambahkan relasi 'progres'.
+     * Ini untuk menyamakan pemanggilan 'unit.progres' di ProgresController.
+     */
+    public function progres(): HasMany 
+    {
+        return $this->hasMany(Progres::class, 'unit_id')->latest();
+    }
+
+    /**
+     * Relasi progres terbaru untuk ringkasan admin/owner.
      */
     public function latestProgres(): HasOne
     {
@@ -56,7 +64,7 @@ class Unit extends Model
     }
 
     /**
-     * Relasi histori progres pembangunan.
+     * Relasi histori progres pembangunan lengkap.
      */
     public function progres_history(): HasMany 
     {
@@ -64,16 +72,19 @@ class Unit extends Model
     }
 
     /**
-     * Relasi ke Booking.
+     * Relasi ke data Booking unit.
      */
     public function booking(): HasOne
     {
         return $this->hasOne(Booking::class, 'unit_id');
     }
 
+    // =========================================================
+    // ACCESSORS (Untuk Tampilan di Blade)
+    // =========================================================
+
     /**
-     * Accessor untuk nama unit yang rapi.
-     * PERBAIKAN: Menggunakan $this->no_unit.
+     * Menggabungkan Blok dan Nomor Unit.
      */
     public function getNamaUnitAttribute(): string
     {
@@ -81,8 +92,7 @@ class Unit extends Model
     }
     
     /**
-     * Accessor untuk format harga rupiah yang profesional.
-     * Contoh di Blade: {{ $unit->harga_formatted }}.
+     * Format harga Rupiah profesional.
      */
     public function getHargaFormattedAttribute(): string
     {

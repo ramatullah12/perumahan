@@ -40,13 +40,12 @@ class UnitController extends Controller
 
     public function store(Request $request)
     {
-        // PERBAIKAN: Menggunakan kembali no_unit sesuai instruksi terakhir Anda
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
             'tipe_id'    => 'required|exists:tipes,id',
             'block'      => 'required|string|max:10',
             'harga'      => 'required|numeric|min:0', 
-            'no_unit'    => [ // Kembali ke no_unit
+            'no_unit'    => [ 
                 'required', 'string', 'max:10',
                 Rule::unique('units')->where(fn($q) => 
                     $q->where('project_id', $request->project_id)->where('block', $request->block)
@@ -57,7 +56,6 @@ class UnitController extends Controller
 
         DB::transaction(function () use ($validated, $request) {
             $validated['progres'] = 0; 
-            // Unit::create akan mencari kolom 'no_unit' di database
             Unit::create($validated);
             $this->syncProjectStock($request->project_id);
         });
@@ -69,14 +67,13 @@ class UnitController extends Controller
     {
         $oldProjectId = $unit->project_id; 
 
-        // PERBAIKAN: Menggunakan kembali no_unit
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
             'tipe_id'    => 'required|exists:tipes,id',
             'block'      => 'required|string|max:10',
             'harga'      => 'required|numeric|min:0', 
             'progres'    => 'required|integer|min:0|max:100', 
-            'no_unit'    => [ // Kembali ke no_unit
+            'no_unit'    => [ 
                 'required', 'string', 'max:10',
                 Rule::unique('units')->ignore($unit->id)->where(fn($q) => 
                     $q->where('project_id', $request->project_id)->where('block', $request->block)
@@ -116,5 +113,23 @@ class UnitController extends Controller
     {
         $tipes = Tipe::where('project_id', $projectId)->orderBy('nama_tipe')->get(['id', 'nama_tipe']);
         return response()->json($tipes);
+    }
+
+    /**
+     * =============================================================
+     * PENAMBAHAN FITUR CUSTOMER
+     * =============================================================
+     */
+    public function jelajahiProyek()
+    {
+        // Mengambil data proyek agar rute customer tidak error
+        $projects = Project::latest()->get();
+
+        /**
+         * PERBAIKAN PATH VIEW: 
+         * Berdasarkan gambar struktur folder Anda, filenya ada di:
+         * resources/views/project/customer/index.blade.php
+         */
+        return view('project.customer.index', compact('projects'));
     }
 }
