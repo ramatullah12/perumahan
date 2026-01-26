@@ -44,7 +44,7 @@ class ProjectController extends Controller
             'gambar'      => 'required|image|mimes:jpg,png,jpeg,webp|max:2048',
         ]);
 
-        $request->file('foto')->storePublicly('projects', 'public');
+        $path = $request->file('gambar')->store('projects', 'public');
 
         /**
          * SOLUSI ERROR 1364: Mengirimkan nilai awal ke kolom yang tidak memiliki default value
