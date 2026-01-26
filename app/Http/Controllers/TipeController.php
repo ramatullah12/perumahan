@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 class TipeController extends Controller
 {
     public function index() {
-        $tipes = Tipe::with('project')->latest()->get();
+        $tipes = tipe::with('project')->latest()->get();
         return view('tipe.admin.index', compact('tipes'));
     }
 
