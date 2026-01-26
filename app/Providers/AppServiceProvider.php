@@ -31,5 +31,9 @@ class AppServiceProvider extends ServiceProvider
                 $view->with('unreadNotificationsCount', $unreadCount);
             }
         });
+
+        if ($this->app->environment('production')) {
+            \URL::forceScheme('https');
+        }
     }
 }
