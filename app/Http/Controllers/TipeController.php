@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-
 use App\Models\Tipe;
 use App\Models\Project;
 use Illuminate\Http\Request;
@@ -14,7 +13,7 @@ class TipeController extends Controller
      * Menampilkan daftar tipe adsa
      */
     public function index() {
-        
+
         $tipes = Tipe::with('project')->latest()->get();
         return view('tipe.admin.index', compact('tipes'));
     }
