@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory; // Tambahkan baris ini!
 use Illuminate\Database\Eloquent\Model;
 
 class Tipe extends Model
 {
- use HasFactory;
+    use HasFactory; // Sekarang baris ini akan berfungsi
 
     protected $fillable = [
         'project_id', 'nama_tipe', 'harga', 'luas_tanah', 
@@ -16,6 +17,5 @@ class Tipe extends Model
     public function project()
     {
         return $this->belongsTo(Project::class);
-        //
     }   
 }
