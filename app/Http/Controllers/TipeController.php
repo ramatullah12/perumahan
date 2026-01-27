@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+
 use App\Models\Tipe;
 use App\Models\Project;
 use Illuminate\Http\Request;
