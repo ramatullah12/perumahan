@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Tipe extends Model
 {
-    use HasFactory;
+ use HasFactory;
 
     protected $fillable = [
         'project_id', 'nama_tipe', 'harga', 'luas_tanah', 
@@ -18,5 +17,5 @@ class Tipe extends Model
     {
         return $this->belongsTo(Project::class);
         //
-    }
+    }   
 }
