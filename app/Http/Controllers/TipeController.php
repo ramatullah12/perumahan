@@ -14,6 +14,7 @@ class TipeController extends Controller
      * Menampilkan daftar tipe adsa
      */
     public function index() {
+        
         $tipes = Tipe::with('project')->latest()->get();
         return view('tipe.admin.index', compact('tipes'));
     }
