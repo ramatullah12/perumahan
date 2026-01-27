@@ -10,10 +10,9 @@ use Illuminate\Support\Facades\Storage;
 class TipeController extends Controller
 {
     /**
-     * Menampilkan daftar tipe
+     * Menampilkan daftar tipe adasdsadadaa
      */
     public function index() {
-        // PERBAIKAN: Menggunakan 'Tipe' (huruf kapital) agar sesuai dengan Model
         $tipes = Tipe::with('project')->latest()->get();
         return view('tipe.admin.index', compact('tipes'));
     }
