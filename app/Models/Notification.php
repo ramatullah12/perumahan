@@ -10,7 +10,7 @@ class Notification extends Model
     use HasFactory;
 
     /**
-     * Kolom yang dapat diisi (Mass Assignment).
+     * Kolom yang dapat diisi (Mass Assignment).c scjnj
      * Sesuai dengan struktur tabel migrasi yang kita buat.
      */
     protected $fillable = [
