@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Storage;
 class TipeController extends Controller
 {
     /**
-     * Menampilkan daftar tipe adasdsadadaa
+     * Menampilkan daftar tipe
      */
     public function index() {
         $tipes = Tipe::with('project')->latest()->get();
