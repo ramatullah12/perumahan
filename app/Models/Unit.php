@@ -36,7 +36,7 @@ class Unit extends Model
      */
     public function tipe(): BelongsTo
     {
-        return $this->belongsTo(Tipe::class, 'tipe_id');
+        return $this->belongsTo(tipe::class, 'tipe_id');
     }
 
     /**
