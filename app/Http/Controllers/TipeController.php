@@ -5,15 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\Tipe;
 use App\Models\Project;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+// Library Cloudinary wajib ditambahkan
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class TipeController extends Controller
 {
     /**
-     * Menampilkan daftar tipe adsa
+     * Menampilkan daftar tipe
      */
     public function index() {
-
         $tipes = Tipe::with('project')->latest()->get();
         return view('tipe.admin.index', compact('tipes'));
     }
@@ -27,7 +27,7 @@ class TipeController extends Controller
     }
 
     /**
-     * Menyimpan data tipe baru
+     * Menyimpan data tipe baru (FIXED FOR VERCEL)
      */
     public function store(Request $request) {
         $validated = $request->validate([
@@ -42,7 +42,14 @@ class TipeController extends Controller
         ]);
 
         if ($request->hasFile('gambar')) {
-            $validated['gambar'] = $request->file('gambar')->store('tipes', 'public');
+            // Upload ke Cloudinary menggunakan preset 'kedamark'
+            $uploadedFile = Cloudinary::upload($request->file('gambar')->getRealPath(), [
+                'upload_preset' => 'kedamark',
+                'folder' => 'tipes'
+            ]);
+            
+            // Simpan URL HTTPS dari Cloudinary ke database
+            $validated['gambar'] = $uploadedFile->getSecurePath();
         }
 
         Tipe::create($validated);
@@ -59,7 +66,7 @@ class TipeController extends Controller
     }
 
     /**
-     * Memperbarui data tipe
+     * Memperbarui data tipe (FIXED FOR VERCEL)
      */
     public function update(Request $request, Tipe $tipe) {
         $validated = $request->validate([
@@ -74,11 +81,16 @@ class TipeController extends Controller
         ]);
 
         if ($request->hasFile('gambar')) {
-            // Hapus gambar lama jika ada
-            if ($tipe->gambar) {
-                Storage::disk('public')->delete($tipe->gambar);
-            }
-            $validated['gambar'] = $request->file('gambar')->store('tipes', 'public');
+            // Upload gambar baru ke Cloudinary
+            $uploadedFile = Cloudinary::upload($request->file('gambar')->getRealPath(), [
+                'upload_preset' => 'kedamark',
+                'folder' => 'tipes'
+            ]);
+            
+            $validated['gambar'] = $uploadedFile->getSecurePath();
+            
+            // Catatan: Untuk Cloudinary, kita tidak perlu menghapus file lokal 
+            // karena file disimpan di cloud.
         }
 
         $tipe->update($validated);
@@ -90,10 +102,7 @@ class TipeController extends Controller
      * Menghapus data tipe
      */
     public function destroy(Tipe $tipe) {
-        if ($tipe->gambar) {
-            Storage::disk('public')->delete($tipe->gambar);
-        }
-        
+        // Hapus record dari database
         $tipe->delete();
 
         return redirect()->route('admin.tipe.index')->with('success', 'Tipe Berhasil Dihapus!');

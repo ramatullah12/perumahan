@@ -26,9 +26,13 @@ class UnitController extends Controller
         }
     }
 
+    /**
+     * ADMIN - DAFTAR UNIT
+     */
     public function index(Request $request)
     {
         $projects = Project::all();
+        // Menggunakan Eager Loading agar tidak berat saat loading data di Vercel
         $query = Unit::with(['project', 'tipe']);
 
         if ($request->filled('project_id')) $query->where('project_id', $request->project_id);
@@ -38,6 +42,9 @@ class UnitController extends Controller
         return view('unit.admin.index', compact('units', 'projects'));
     }
 
+    /**
+     * ADMIN - SIMPAN UNIT BARU
+     */
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -54,15 +61,22 @@ class UnitController extends Controller
             'status'     => 'required|in:Tersedia,Dibooking,Terjual'
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
-            $validated['progres'] = 0; 
-            Unit::create($validated);
-            $this->syncProjectStock($request->project_id);
-        });
+        try {
+            DB::transaction(function () use ($validated, $request) {
+                $validated['progres'] = 0; 
+                Unit::create($validated);
+                $this->syncProjectStock($request->project_id);
+            });
 
-        return redirect()->route('admin.unit.index')->with('success', 'Unit berhasil ditambahkan!');
+            return redirect()->route('admin.unit.index')->with('success', 'Unit berhasil ditambahkan!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal menambah unit: ' . $e->getMessage());
+        }
     }
 
+    /**
+     * ADMIN - UPDATE DATA UNIT
+     */
     public function update(Request $request, Unit $unit)
     {
         $oldProjectId = $unit->project_id; 
@@ -82,54 +96,70 @@ class UnitController extends Controller
             'status'     => 'required|in:Tersedia,Dibooking,Terjual'
         ]);
 
-        DB::transaction(function () use ($validated, $unit, $request, $oldProjectId) {
-            $unit->update($validated);
-            $this->syncProjectStock($request->project_id);
-            if($oldProjectId != $request->project_id) {
-                $this->syncProjectStock($oldProjectId);
-            }
-        });
+        try {
+            DB::transaction(function () use ($validated, $unit, $request, $oldProjectId) {
+                $unit->update($validated);
+                
+                // Sync stok proyek baru
+                $this->syncProjectStock($request->project_id);
+                
+                // Jika proyek diganti, sync stok proyek lama juga
+                if($oldProjectId != $request->project_id) {
+                    $this->syncProjectStock($oldProjectId);
+                }
+            });
 
-        return redirect()->route('admin.unit.index')->with('success', 'Data unit diperbarui!');
+            return redirect()->route('admin.unit.index')->with('success', 'Data unit diperbarui!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Gagal memperbarui unit: ' . $e->getMessage());
+        }
     }
 
+    /**
+     * ADMIN - HAPUS UNIT
+     */
     public function destroy(Unit $unit)
     {
         $projectId = $unit->project_id;
 
+        // Proteksi agar data yang sudah dibayar tidak hilang dari record
         if ($unit->status !== 'Tersedia') {
             return back()->with('error', 'Unit yang sudah dibooking/terjual tidak bisa dihapus!');
         }
 
-        DB::transaction(function () use ($unit, $projectId) {
-            $unit->delete();
-            $this->syncProjectStock($projectId);
-        });
+        try {
+            DB::transaction(function () use ($unit, $projectId) {
+                $unit->delete();
+                $this->syncProjectStock($projectId);
+            });
 
-        return back()->with('success', 'Unit berhasil dihapus!');
+            return back()->with('success', 'Unit berhasil dihapus!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal menghapus unit: ' . $e->getMessage());
+        }
     }
 
+    /**
+     * AJAX - AMBIL TIPE BERDASARKAN PROYEK
+     */
     public function getTipeByProject($projectId)
     {
-        $tipes = Tipe::where('project_id', $projectId)->orderBy('nama_tipe')->get(['id', 'nama_tipe']);
+        $tipes = Tipe::where('project_id', $projectId)
+            ->orderBy('nama_tipe')
+            ->get(['id', 'nama_tipe']);
+            
         return response()->json($tipes);
     }
 
     /**
-     * =============================================================
-     * PENAMBAHAN FITUR CUSTOMER
-     * =============================================================
+     * CUSTOMER - JELAJAHI PROYEK
      */
     public function jelajahiProyek()
     {
-        // Mengambil data proyek agar rute customer tidak error
+        // Menampilkan proyek terbaru di sisi customer
         $projects = Project::latest()->get();
 
-        /**
-         * PERBAIKAN PATH VIEW: 
-         * Berdasarkan gambar struktur folder Anda, filenya ada di:
-         * resources/views/project/customer/index.blade.php
-         */
+        // Pastikan path view sesuai dengan struktur folder Anda
         return view('project.customer.index', compact('projects'));
     }
 }

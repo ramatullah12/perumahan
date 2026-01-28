@@ -8,9 +8,10 @@ use App\Models\Project;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Exception;
+// Library Cloudinary wajib ada
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class BookingController extends Controller
 {
@@ -60,7 +61,7 @@ class BookingController extends Controller
     }
 
     /**
-     * CUSTOMER - SIMPAN BOOKING
+     * CUSTOMER - SIMPAN BOOKING (FIXED FOR VERCEL)
      */
     public function store(Request $request)
     {
@@ -84,7 +85,12 @@ class BookingController extends Controller
 
                 $pathKtp = null;
                 if ($request->hasFile('dokumen_ktp')) {
-                    $pathKtp = $request->file('dokumen_ktp')->store('dokumen_booking', 'public');
+                    // Upload ke Cloudinary menggunakan preset 'kedamark'
+                    $uploadedFile = Cloudinary::upload($request->file('dokumen_ktp')->getRealPath(), [
+                        'upload_preset' => 'kedamark', // Sesuai dashboard Cloudinary Anda
+                        'folder' => 'dokumen_booking'
+                    ]);
+                    $pathKtp = $uploadedFile->getSecurePath(); // Ambil URL HTTPS permanen
                 }
 
                 Booking::create([
@@ -93,7 +99,7 @@ class BookingController extends Controller
                     'project_id'      => $unit->project_id,
                     'unit_id'         => $unit->id,
                     'tanggal_booking' => $request->tanggal_booking,
-                    'dokumen'         => $pathKtp,
+                    'dokumen'         => $pathKtp, // Simpan URL Cloudinary
                     'keterangan'      => $request->keterangan,
                     'status'          => 'pending',
                 ]);
@@ -121,7 +127,7 @@ class BookingController extends Controller
     }
 
     /**
-     * ADMIN - UPDATE STATUS BOOKING + KONTROL AKSES NOTIFIKASI
+     * ADMIN - UPDATE STATUS BOOKING
      */
     public function updateStatus(Request $request, Booking $booking)
     {
@@ -131,39 +137,28 @@ class BookingController extends Controller
 
         try {
             return DB::transaction(function () use ($request, $booking) {
-                
                 $booking->update(['status' => $request->status]);
                 $unit = $booking->unit;
 
-                // 1. JIKA DISETUJUI (MEMBERIKAN AKSES)
                 if ($request->status == 'disetujui') {
                     $unit->update(['status' => 'Terjual']);
 
-                    // Buat atau perbarui notifikasi agar muncul di portal customer
                     Notification::updateOrCreate(
                         ['user_id' => $booking->user_id, 'type' => 'booking'],
                         [
                             'title'   => 'Booking Disetujui!',
-                            'message' => 'Selamat! Booking Anda untuk Unit ' . $unit->no_unit . ' di ' . $booking->unit->project->nama_proyek . ' telah disetujui. Akses monitoring pembangunan kini dibuka.',
+                            'message' => 'Selamat! Booking Anda untuk Unit ' . $unit->no_unit . ' di ' . $booking->unit->project->nama_proyek . ' telah disetujui.',
                             'is_read' => false,
                             'created_at' => now()
                         ]
                     );
-
-                } 
-                // 2. JIKA DITOLAK ATAU KEMBALI KE PENDING (MENCABUT AKSES)
-                else {
-                    // Update status unit kembali
+                } else {
                     $unit->update(['status' => ($request->status == 'pending' ? 'Dibooking' : 'Tersedia')]);
-
-                    // Hapus notifikasi terkait agar hilang dari layar customer
-                    Notification::where('user_id', $booking->user_id)
-                        ->where('type', 'booking')
-                        ->delete();
+                    Notification::where('user_id', $booking->user_id)->where('type', 'booking')->delete();
                 }
 
                 return redirect()->route('admin.booking.index')
-                    ->with('success', 'Status diperbarui. Akses notifikasi customer telah disesuaikan.');
+                    ->with('success', 'Status diperbarui.');
             });
         } catch (Exception $e) {
             return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());

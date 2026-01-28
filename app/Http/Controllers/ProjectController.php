@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+// Library Cloudinary wajib ada untuk Vercel
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProjectController extends Controller
 {
@@ -34,6 +37,9 @@ class ProjectController extends Controller
         return view('project.admin.create');
     }
 
+    /**
+     * SIMPAN PROYEK BARU (FIXED FOR VERCEL)
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -44,19 +50,19 @@ class ProjectController extends Controller
             'gambar'      => 'required|image|mimes:jpg,png,jpeg,webp|max:2048',
         ]);
 
-        $path = $request->file('gambar')->store('projects', 'public');
+        // Upload ke Cloudinary menggunakan preset 'kedamark'
+        $uploadedFileUrl = Cloudinary::upload($request->file('gambar')->getRealPath(), [
+            'upload_preset' => 'kedamark',
+            'folder' => 'projects'
+        ])->getSecurePath();
 
-        /**
-         * SOLUSI ERROR 1364: Mengirimkan nilai awal ke kolom yang tidak memiliki default value
-         */
         Project::create([
             'nama_proyek' => $request->nama_proyek,
             'lokasi'      => $request->lokasi,
             'deskripsi'   => $request->deskripsi,
             'total_unit'  => $request->total_unit, 
-            'gambar'      => $path,
+            'gambar'      => $uploadedFileUrl, // Simpan URL HTTPS permanen
             'status'      => 'Sedang Berjalan',
-            // Inisialisasi stok awal
             'tersedia'    => $request->total_unit, 
             'booked'      => 0,
             'terjual'     => 0,
@@ -70,6 +76,9 @@ class ProjectController extends Controller
         return view('project.admin.edit', compact('project'));
     }
 
+    /**
+     * UPDATE PROYEK (FIXED FOR VERCEL)
+     */
     public function update(Request $request, Project $project)
     {
         $request->validate([
@@ -82,19 +91,19 @@ class ProjectController extends Controller
 
         $data = $request->only(['nama_proyek', 'lokasi', 'total_unit', 'deskripsi']);
 
-        /**
-         * Sinkronisasi Stok: Jika total_unit (kapasitas) diubah, 
-         * maka jumlah 'tersedia' harus dihitung ulang berdasarkan unit yang sudah laku
-         */
+        // Sinkronisasi Stok
         if ($request->total_unit != $project->total_unit) {
             $data['tersedia'] = $request->total_unit - ($project->booked + $project->terjual);
         }
 
         if ($request->hasFile('gambar')) {
-            if ($project->gambar) {
-                Storage::disk('public')->delete($project->gambar);
-            }
-            $data['gambar'] = $request->file('gambar')->store('projects', 'public');
+            // Upload baru ke Cloudinary
+            $uploadedFileUrl = Cloudinary::upload($request->file('gambar')->getRealPath(), [
+                'upload_preset' => 'kedamark',
+                'folder' => 'projects'
+            ])->getSecurePath();
+            
+            $data['gambar'] = $uploadedFileUrl;
         }
 
         $project->update($data);
@@ -104,18 +113,14 @@ class ProjectController extends Controller
 
     public function destroy(Project $project)
     {
-        /** * Proteksi: Mencegah penghapusan jika sudah ada unit yang terjual secara riil
-         */
+        // Proteksi: Mencegah penghapusan jika sudah ada unit yang terjual secara riil
         $sudahTerjual = $project->units()->where('status', 'Terjual')->count();
 
         if ($sudahTerjual > 0) {
             return redirect()->back()->with('error', 'Proyek tidak bisa dihapus karena sudah ada unit yang terjual!');
         }
 
-        if ($project->gambar) {
-            Storage::disk('public')->delete($project->gambar);
-        }
-
+        // Untuk Cloudinary, file tidak perlu dihapus manual dari storage lokal
         $project->delete();
 
         return redirect()->route('admin.project.index')->with('success', 'Proyek berhasil dihapus!');

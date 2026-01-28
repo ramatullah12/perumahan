@@ -2,30 +2,34 @@
 
 @section('content')
 <div class="p-4 md:p-8 bg-[#F9FAFB] min-h-screen">
-    <div class="max-w-4xl mx-auto mb-6">
-        <nav class="flex mb-4 text-sm" aria-label="Breadcrumb">
+    {{-- Breadcrumb & Header --}}
+    <div class="max-w-4xl mx-auto mb-8">
+        <nav class="flex mb-4 text-sm font-medium" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-2">
-                <li class="text-gray-500">Manajemen Proyek</li>
-                <li class="text-gray-400">/</li>
-                <li class="text-blue-600 font-medium">Tambah Baru</li>
+                <li>
+                    <a href="{{ route('admin.project.index') }}" class="text-gray-400 hover:text-blue-600 transition-colors flex items-center">
+                        <i class="fas fa-layer-group mr-2"></i> Manajemen Proyek
+                    </a>
+                </li>
+                <li class="text-gray-300">/</li>
+                <li class="text-blue-600 font-bold tracking-wide">Tambah Baru</li>
             </ol>
         </nav>
-        <h2 class="text-3xl font-extrabold text-gray-900 tracking-tight">Tambah Proyek Baru</h2>
-        <p class="text-gray-500 mt-1">Lengkapi informasi di bawah ini untuk mempublikasikan proyek perumahan baru.</p>
+        <h2 class="text-3xl font-black text-gray-900 tracking-tight">Buat Proyek Properti</h2>
+        <p class="text-gray-500 mt-1 font-medium">Lengkapi parameter proyek untuk mulai memasarkan unit kepada calon pembeli.</p>
     </div>
 
     <div class="max-w-4xl mx-auto">
+        {{-- Alert Kesalahan Input --}}
         @if ($errors->any())
-        <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-                    </svg>
+        <div class="mb-8 p-5 bg-rose-50 border-2 border-rose-100 rounded-3xl animate-pulse">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 bg-rose-500 text-white rounded-lg p-2">
+                    <i class="fas fa-exclamation-triangle"></i>
                 </div>
-                <div class="ml-3">
-                    <h3 class="text-sm font-medium text-red-800">Terdapat beberapa kesalahan input:</h3>
-                    <ul class="mt-1 text-sm text-red-700 list-disc list-inside">
+                <div class="ml-4">
+                    <h3 class="text-sm font-black text-rose-800 uppercase tracking-wider">Ups! Ada yang terlewat:</h3>
+                    <ul class="mt-2 text-sm text-rose-700 font-medium list-disc list-inside space-y-1">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
                         @endforeach
@@ -38,71 +42,114 @@
         <form action="{{ route('admin.project.store') }}" method="POST" enctype="multipart/form-data" class="space-y-8">
             @csrf
             
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="p-8 space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="space-y-2">
-                            <label class="text-sm font-bold text-gray-700 uppercase tracking-wider">Nama Proyek</label>
-                            <input type="text" name="nama_proyek" value="{{ old('nama_proyek') }}" placeholder="" 
-                                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200" required>
+            <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden transition-all hover:shadow-md">
+                <div class="p-10 space-y-8">
+                    
+                    {{-- Baris 1: Nama & Unit --}}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div class="md:col-span-2 space-y-2">
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Nama Proyek <span class="text-rose-500">*</span></label>
+                            <div class="relative group">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 group-focus-within:text-blue-500 transition-colors">
+                                    <i class="fas fa-building"></i>
+                                </span>
+                                <input type="text" name="nama_proyek" value="{{ old('nama_proyek') }}" 
+                                    class="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700" 
+                                    placeholder="Contoh: Griya Pesona Indah" required>
+                            </div>
                         </div>
 
                         <div class="space-y-2">
-                            <label class="text-sm font-bold text-gray-700 uppercase tracking-wider">Total Unit</label>
-                            <div class="relative">
-                                <input type="number" name="total_unit" value="{{ old('total_unit') }}" placeholder="0" 
-                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200" required>
-                                <span class="absolute right-4 top-3 text-gray-400"></span>
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Total Kapasitas <span class="text-rose-500">*</span></label>
+                            <div class="relative group">
+                                <input type="number" name="total_unit" value="{{ old('total_unit') }}" 
+                                    class="w-full px-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700 text-center" 
+                                    placeholder="0" required>
                             </div>
                         </div>
                     </div>
 
-                    <div class="space-y-2">
-                        <label class="text-sm font-bold text-gray-700 uppercase tracking-wider">Lokasi Strategis</label>
-                        <div class="relative">
-                            <span class="absolute left-4 top-3.5 text-gray-400">
-                                <i class="fas fa-map-marker-alt"></i>
-                            </span>
-                            <input type="text" name="lokasi" value="{{ old('lokasi') }}" placeholder="Contoh: Borang, Mata Merah" 
-                                class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200" required>
+                    {{-- Baris 2: Lokasi & Status --}}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Lokasi Geografis <span class="text-rose-500">*</span></label>
+                            <div class="relative group">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 group-focus-within:text-rose-500 transition-colors">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                </span>
+                                <input type="text" name="lokasi" value="{{ old('lokasi') }}" 
+                                    class="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700" 
+                                    placeholder="Kecamatan, Kota" required>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Status Awal</label>
+                            <div class="relative group">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-400 pointer-events-none">
+                                    <i class="fas fa-flag"></i>
+                                </span>
+                                <select name="status" class="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-4 focus:ring-blue-50 focus:bg-white focus:border-blue-500 outline-none transition-all font-bold text-gray-700 appearance-none">
+                                    <option value="Pre-Launch">Pre-Launch</option>
+                                    <option value="Sedang Berjalan" selected>Sedang Berjalan</option>
+                                    <option value="Selesai">Selesai</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
+                    {{-- Deskripsi --}}
                     <div class="space-y-2">
-                        <label class="text-sm font-bold text-gray-700 uppercase tracking-wider">Deskripsi Lengkap</label>
-                        <textarea name="deskripsi" rows="5" placeholder="Gambarkan keunggulan, fasilitas, dan konsep perumahan..." 
-                            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200" required>{{ old('deskripsi') }}</textarea>
+                        <label class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Narasi Pemasaran <span class="text-rose-500">*</span></label>
+                        <textarea name="deskripsi" rows="4" 
+                            class="w-full p-5 bg-gray-50 border border-gray-100 rounded-3xl focus:ring-4 focus:ring-blue-50 focus:bg-white focus:border-blue-500 outline-none transition-all font-medium text-gray-600 leading-relaxed" 
+                            placeholder="Jelaskan selling point proyek ini kepada konsumen..." required>{{ old('deskripsi') }}</textarea>
                     </div>
 
-                    <div class="space-y-2">
-                        <label class="text-sm font-bold text-gray-700 uppercase tracking-wider">Foto Utama Proyek</label>
-                        <div class="flex items-center justify-center w-full">
-                            <label class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all duration-200 overflow-hidden relative">
-                                <div id="preview-container" class="absolute inset-0 hidden">
+                    {{-- Upload Gambar dengan Preview yang Dipercantik --}}
+                    <div class="space-y-4">
+                        <label class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Cover Proyek (Hero Image)</label>
+                        <div class="relative">
+                            <label for="gambar-input" class="flex flex-col items-center justify-center w-full h-80 border-4 border-gray-50 border-dashed rounded-[2rem] cursor-pointer bg-gray-50 hover:bg-white hover:border-blue-200 transition-all duration-300 overflow-hidden group">
+                                
+                                {{-- Preview Container --}}
+                                <div id="preview-container" class="absolute inset-0 hidden z-10">
                                     <img id="image-preview" src="#" alt="Preview" class="w-full h-full object-cover">
-                                    <div class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                        <p class="text-white text-sm font-semibold">Ganti Gambar</p>
+                                    <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                                        <div class="bg-white/20 p-4 rounded-2xl border border-white/30 text-white text-center">
+                                            <i class="fas fa-sync-alt mb-2 text-2xl"></i>
+                                            <p class="text-xs font-black uppercase tracking-widest">Ganti Gambar</p>
+                                        </div>
                                     </div>
                                 </div>
-                                <div id="upload-placeholder" class="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                                    </svg>
-                                    <p class="mb-2 text-sm text-gray-500 font-semibold text-center px-4">Klik untuk unggah atau seret gambar ke sini</p>
-                                    <p class="text-xs text-gray-400 uppercase tracking-tighter">PNG, JPG atau JPEG (Max. 2MB)</p>
+
+                                {{-- Placeholder --}}
+                                <div id="upload-placeholder" class="flex flex-col items-center justify-center text-center px-6">
+                                    <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-500">
+                                        <i class="fas fa-cloud-upload-alt text-3xl"></i>
+                                    </div>
+                                    <h4 class="text-gray-700 font-black text-lg">Pilih Foto Utama</h4>
+                                    <p class="text-gray-400 text-sm mt-1 font-medium">Klik atau tarik file ke sini untuk mengunggah</p>
+                                    <div class="mt-4 flex gap-2">
+                                        <span class="px-3 py-1 bg-white border border-gray-100 rounded-lg text-[9px] font-black text-gray-400 uppercase tracking-tighter shadow-sm">JPG</span>
+                                        <span class="px-3 py-1 bg-white border border-gray-100 rounded-lg text-[9px] font-black text-gray-400 uppercase tracking-tighter shadow-sm">PNG</span>
+                                        <span class="px-3 py-1 bg-white border border-gray-100 rounded-lg text-[9px] font-black text-gray-400 uppercase tracking-tighter shadow-sm">Max 2MB</span>
+                                    </div>
                                 </div>
+                                
                                 <input type="file" name="gambar" id="gambar-input" class="hidden" accept="image/*" required />
                             </label>
                         </div>
                     </div>
                 </div>
 
-                <div class="p-6 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-4">
-                    <a href="{{ route('admin.project.index') }}" class="px-6 py-2.5 text-sm font-bold text-gray-600 hover:text-gray-800 transition-colors">
-                        Batal
+                {{-- Footer Action --}}
+                <div class="p-8 bg-gray-50 border-t border-gray-50 flex flex-col md:flex-row items-center justify-end gap-4">
+                    <a href="{{ route('admin.project.index') }}" class="w-full md:w-auto px-8 py-3.5 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors text-center">
+                        Batalkan
                     </a>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-10 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 flex items-center">
-                        <i class="fas fa-save mr-2"></i> Publikasikan Proyek
+                    <button type="submit" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 rounded-2xl font-black shadow-xl shadow-blue-100 transition-all hover:-translate-y-1 active:scale-95 flex items-center justify-center">
+                        <i class="fas fa-check-circle mr-3"></i> Simpan & Publikasikan
                     </button>
                 </div>
             </div>
