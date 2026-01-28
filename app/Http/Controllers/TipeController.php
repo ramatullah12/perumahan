@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Tipe;
 use App\Models\Project;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http; // Gunakan ini sebagai pengganti SDK Cloudinary
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TipeController extends Controller
 {
@@ -26,7 +27,7 @@ class TipeController extends Controller
     }
 
     /**
-     * Menyimpan data tipe baru (Gaya HTTP Multipart untuk Vercel)
+     * Menyimpan data tipe baru
      */
     public function store(Request $request) {
         $validated = $request->validate([
@@ -44,7 +45,6 @@ class TipeController extends Controller
             try {
                 $file = $request->file('gambar');
                 
-                // Request langsung ke API Cloudinary
                 $response = Http::asMultipart()->post(
                     'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
                     [
@@ -55,7 +55,7 @@ class TipeController extends Controller
                         ],
                         [
                             'name'     => 'upload_preset',
-                            'contents' => 'kedamark', // Preset Anda
+                            'contents' => env('CLOUDINARY_UPLOAD_PRESET', 'kedamark'),
                         ],
                         [
                             'name'     => 'folder',
@@ -69,10 +69,12 @@ class TipeController extends Controller
                 if (isset($result['secure_url'])) {
                     $validated['gambar'] = $result['secure_url'];
                 } else {
-                    return back()->withInput()->withErrors(['gambar' => 'Cloudinary Error: ' . ($result['error']['message'] ?? 'Unknown error')]);
+                    Log::error('Cloudinary Store Error: ', $result);
+                    return back()->withInput()->withErrors(['gambar' => 'Cloudinary Error: ' . ($result['error']['message'] ?? 'Konfigurasi Cloud Name/Preset Salah')]);
                 }
             } catch (\Exception $e) {
-                return back()->withInput()->withErrors(['gambar' => 'Koneksi Cloudinary Gagal: ' . $e->getMessage()]);
+                Log::error('Cloudinary Exception: ' . $e->getMessage());
+                return back()->withInput()->withErrors(['gambar' => 'Koneksi Cloudinary Gagal.']);
             }
         }
 
@@ -90,7 +92,7 @@ class TipeController extends Controller
     }
 
     /**
-     * Memperbarui data tipe (Gaya HTTP Multipart untuk Vercel)
+     * Memperbarui data tipe
      */
     public function update(Request $request, Tipe $tipe) {
         $validated = $request->validate([
@@ -118,7 +120,7 @@ class TipeController extends Controller
                         ],
                         [
                             'name'     => 'upload_preset',
-                            'contents' => 'kedamark',
+                            'contents' => env('CLOUDINARY_UPLOAD_PRESET', 'kedamark'),
                         ],
                         [
                             'name'     => 'folder',
@@ -131,9 +133,11 @@ class TipeController extends Controller
                 
                 if (isset($result['secure_url'])) {
                     $validated['gambar'] = $result['secure_url'];
+                } else {
+                    return back()->withInput()->withErrors(['gambar' => 'Gagal Update Gambar.']);
                 }
             } catch (\Exception $e) {
-                return back()->withInput()->withErrors(['gambar' => 'Cloudinary Error: ' . $e->getMessage()]);
+                return back()->withInput()->withErrors(['gambar' => 'Masalah Koneksi Cloudinary.']);
             }
         }
 
@@ -146,6 +150,7 @@ class TipeController extends Controller
      * Menghapus data tipe
      */
     public function destroy(Tipe $tipe) {
+        // Opsional: Cek jika tipe masih digunakan di tabel Unit sebelum hapus
         $tipe->delete();
         return redirect()->route('admin.tipe.index')->with('success', 'Tipe Berhasil Dihapus!');
     }

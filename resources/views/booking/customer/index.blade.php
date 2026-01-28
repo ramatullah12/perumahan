@@ -75,9 +75,12 @@
     <div class="booking-wrapper">
         <div class="booking-card">
             <div class="unit-img-wrapper">
-                {{-- FIXED: Langsung menggunakan URL dari database --}}
-                @if($b->unit->project->gambar)
-                    <img src="{{ $b->unit->project->gambar }}" class="unit-img" alt="Foto Proyek">
+                @php
+                    $pathFoto = $b->unit->project->gambar ?? null;
+                @endphp
+
+                @if($pathFoto && Storage::disk('public')->exists($pathFoto))
+                    <img src="{{ asset('storage/' . $pathFoto) }}" class="unit-img" alt="Foto Proyek">
                 @else
                     <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=400" class="unit-img" alt="Default">
                 @endif
@@ -89,7 +92,7 @@
                 </div>
                 <div style="color: #718096; font-size: 15px; font-weight: 600; margin-top: 2px;">
                     Blok {{ $b->unit->block ?? '-' }} No. {{ $b->unit->no_unit ?? '-' }} – 
-                    <span style="color: #1e5eff;">Tipe {{ $b->unit->tipe->nama_tipe ?? 'N/A' }}</span>
+                    <span class="text-blue-600">Tipe {{ $b->unit->tipe->nama_tipe ?? 'N/A' }}</span>
                 </div>
 
                 <div class="unit-price">
@@ -97,6 +100,7 @@
                 </div>
 
                 <div style="color: #a0aec0; font-size: 13px; margin-top: 15px; font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                    <i class="far fa-calendar-alt"></i>
                     Diajukan pada: 
                     <span style="color: #4a5568; font-weight: 700;">
                         {{ \Carbon\Carbon::parse($b->tanggal_booking)->translatedFormat('l, d F Y') }}
@@ -118,9 +122,10 @@
                     <div style="color: #047857; font-size: 12px; font-weight: 500;">Pantau tahap pembangunan rumah Anda secara real-time melalui tombol di samping.</div>
                 </div>
             </div>
-            <a href="{{ route('customer.progres.index') }}" class="btn-progress">
-                LIHAT PROGRES RUMAH
-            </a>
+            <a href="{{ route('customer.progres.index') }}" 
+   class="btn-progress {{ request()->routeIs('customer.progres.index') ? 'active' : '' }}">
+   LIHAT PROGRES RUMAH
+</a>
         </div>
         @endif
     </div>

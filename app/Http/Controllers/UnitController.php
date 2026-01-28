@@ -8,6 +8,7 @@ use App\Models\Tipe;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class UnitController extends Controller
 {
@@ -18,11 +19,19 @@ class UnitController extends Controller
     {
         $project = Project::find($projectId);
         if ($project) {
-            // Menghitung ulang jumlah unit berdasarkan status
+            // Menghitung ulang jumlah unit berdasarkan status secara agregat
+            $stats = Unit::where('project_id', $projectId)
+                ->selectRaw("
+                    count(case when status = 'Tersedia' then 1 end) as tersedia,
+                    count(case when status = 'Dibooking' then 1 end) as booked,
+                    count(case when status = 'Terjual' then 1 end) as terjual
+                ")
+                ->first();
+
             $project->update([
-                'tersedia' => Unit::where('project_id', $projectId)->where('status', 'Tersedia')->count(),
-                'booked'   => Unit::where('project_id', $projectId)->where('status', 'Dibooking')->count(),
-                'terjual'  => Unit::where('project_id', $projectId)->where('status', 'Terjual')->count(),
+                'tersedia' => $stats->tersedia ?? 0,
+                'booked'   => $stats->booked ?? 0,
+                'terjual'  => $stats->terjual ?? 0,
             ]);
         }
     }
@@ -34,7 +43,7 @@ class UnitController extends Controller
     {
         $projects = Project::orderBy('nama_proyek')->get();
         
-        // Eager loading tipe dan project agar tidak terjadi N+1 query yang memberatkan server Vercel
+        // Eager loading tipe dan project untuk menghindari N+1 query
         $query = Unit::with(['project', 'tipe']);
 
         if ($request->filled('project_id')) {
@@ -61,26 +70,27 @@ class UnitController extends Controller
             'harga'      => 'required|numeric|min:0', 
             'no_unit'    => [ 
                 'required', 'string', 'max:10',
-                // Validasi unik: No Unit tidak boleh sama dalam satu Block di satu Proyek
                 Rule::unique('units')->where(fn($q) => 
                     $q->where('project_id', $request->project_id)->where('block', $request->block)
                 ),
             ],
             'status'     => 'required|in:Tersedia,Dibooking,Terjual'
+        ], [
+            'no_unit.unique' => 'Nomor unit ini sudah ada di blok dan proyek yang sama.'
         ]);
 
         try {
             DB::transaction(function () use ($validated, $request) {
-                $validated['progres'] = 0; // Default progres unit baru adalah 0%
+                $validated['progres'] = 0; 
                 Unit::create($validated);
                 
-                // Update jumlah stok di tabel projects
                 $this->syncProjectStock($request->project_id);
             });
 
             return redirect()->route('admin.unit.index')->with('success', 'Unit berhasil ditambahkan!');
         } catch (\Exception $e) {
-            return redirect()->back()->withInput()->with('error', 'Gagal menambah unit: ' . $e->getMessage());
+            Log::error("Error Store Unit: " . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Gagal menambah unit.');
         }
     }
 
@@ -110,10 +120,8 @@ class UnitController extends Controller
             DB::transaction(function () use ($validated, $unit, $request, $oldProjectId) {
                 $unit->update($validated);
                 
-                // Sinkronisasi stok proyek saat ini
                 $this->syncProjectStock($request->project_id);
                 
-                // Jika user memindahkan unit ke proyek lain, sinkronisasi juga proyek lamanya
                 if($oldProjectId != $request->project_id) {
                     $this->syncProjectStock($oldProjectId);
                 }
@@ -121,7 +129,8 @@ class UnitController extends Controller
 
             return redirect()->route('admin.unit.index')->with('success', 'Data unit diperbarui!');
         } catch (\Exception $e) {
-            return redirect()->back()->withInput()->with('error', 'Gagal memperbarui unit: ' . $e->getMessage());
+            Log::error("Error Update Unit: " . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Gagal memperbarui unit.');
         }
     }
 
@@ -132,9 +141,8 @@ class UnitController extends Controller
     {
         $projectId = $unit->project_id;
 
-        // Jangan izinkan hapus jika unit sudah ada transaksi (status bukan Tersedia)
         if ($unit->status !== 'Tersedia') {
-            return back()->with('error', 'Unit tidak bisa dihapus karena statusnya ' . $unit->status);
+            return back()->with('error', 'Unit tidak bisa dihapus karena sudah berstatus ' . $unit->status);
         }
 
         try {
@@ -145,13 +153,12 @@ class UnitController extends Controller
 
             return back()->with('success', 'Unit berhasil dihapus!');
         } catch (\Exception $e) {
-            return back()->with('error', 'Gagal menghapus unit: ' . $e->getMessage());
+            return back()->with('error', 'Gagal menghapus unit.');
         }
     }
 
     /**
      * AJAX - AMBIL TIPE BERDASARKAN PROYEK
-     * Digunakan pada dropdown dinamis di form Create/Edit Unit
      */
     public function getTipeByProject($projectId)
     {

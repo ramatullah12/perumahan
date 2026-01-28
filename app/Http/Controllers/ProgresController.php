@@ -8,7 +8,8 @@ use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http; // Gunakan ini untuk upload ke API
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class ProgresController extends Controller
@@ -66,7 +67,7 @@ class ProgresController extends Controller
     }
 
     /**
-     * ADMIN - SIMPAN UPDATE PROGRES (Gaya HTTP Multipart untuk Vercel)
+     * ADMIN - SIMPAN UPDATE PROGRES
      */
     public function store(Request $request)
     {
@@ -75,7 +76,7 @@ class ProgresController extends Controller
             'persentase' => 'required|numeric|min:0|max:100',
             'tahap'      => 'required|string|max:255',
             'keterangan' => 'nullable|string',
-            'foto'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'foto'       => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         try {
@@ -85,23 +86,12 @@ class ProgresController extends Controller
                 if ($request->hasFile('foto')) {
                     $file = $request->file('foto');
                     
-                    // Request langsung ke API Cloudinary
                     $response = Http::asMultipart()->post(
                         'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
                         [
-                            [
-                                'name'     => 'file',
-                                'contents' => fopen($file->getRealPath(), 'r'),
-                                'filename' => $file->getClientOriginalName(),
-                            ],
-                            [
-                                'name'     => 'upload_preset',
-                                'contents' => 'kedamark',
-                            ],
-                            [
-                                'name'     => 'folder',
-                                'contents' => 'progres_pembangunan'
-                            ],
+                            ['name' => 'file', 'contents' => fopen($file->getRealPath(), 'r'), 'filename' => $file->getClientOriginalName()],
+                            ['name' => 'upload_preset', 'contents' => env('CLOUDINARY_UPLOAD_PRESET', 'kedamark')],
+                            ['name' => 'folder', 'contents' => 'progres_pembangunan'],
                         ]
                     );
 
@@ -110,11 +100,12 @@ class ProgresController extends Controller
                     if (isset($result['secure_url'])) {
                         $fotoUrl = $result['secure_url'];
                     } else {
-                        throw new Exception('Upload gagal: ' . ($result['error']['message'] ?? 'Unknown error'));
+                        Log::error('Cloudinary Progres Store Error: ', $result);
+                        throw new Exception('Gagal upload foto ke Cloudinary.');
                     }
                 }
 
-                // 1. Simpan ke tabel 'progres'
+                // 1. Simpan record ke history progres
                 Progres::create([
                     'unit_id'    => $request->unit_id,
                     'persentase' => $request->persentase,
@@ -123,15 +114,15 @@ class ProgresController extends Controller
                     'foto'       => $fotoUrl,
                 ]);
 
-                // 2. Sinkronisasi ke tabel 'units'
+                // 2. Update persentase terakhir di tabel units
                 Unit::where('id', $request->unit_id)->update([
                     'progres' => $request->persentase
                 ]);
 
-                return redirect()->route('admin.progres.index')->with('success', 'Progres pembangunan berhasil diperbarui!');
+                return redirect()->route('admin.progres.index')->with('success', 'Progres pembangunan berhasil ditambahkan!');
             });
         } catch (Exception $e) {
-            return redirect()->back()->withInput()->with('error', 'Gagal update progres: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Error: ' . $e->getMessage());
         }
     }
 
@@ -140,12 +131,13 @@ class ProgresController extends Controller
      */
     public function edit($id)
     {
+        // $id di sini adalah unit_id sesuai logika route Anda
         $unit = Unit::with(['project', 'latestProgres'])->findOrFail($id);
         return view('progres.admin.edit', compact('unit'));
     }
 
     /**
-     * ADMIN - PROSES UPDATE DATA (Gaya HTTP Multipart untuk Vercel)
+     * ADMIN - PROSES UPDATE DATA
      */
     public function update(Request $request, $id)
     {
@@ -153,14 +145,16 @@ class ProgresController extends Controller
             'persentase' => 'required|numeric|min:0|max:100',
             'tahap'      => 'required|string|max:255',
             'keterangan' => 'nullable|string',
-            'foto'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'foto'       => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
         try {
             return DB::transaction(function () use ($request, $id) {
                 $unit = Unit::findOrFail($id);
-                // Default ambil foto lama
-                $fotoUrl = $unit->latestProgres->foto ?? null;
+                
+                // Ambil foto dari progres terakhir sebagai cadangan jika tidak upload baru
+                $latest = Progres::where('unit_id', $id)->latest()->first();
+                $fotoUrl = $latest ? $latest->foto : null;
 
                 if ($request->hasFile('foto')) {
                     $file = $request->file('foto');
@@ -168,19 +162,9 @@ class ProgresController extends Controller
                     $response = Http::asMultipart()->post(
                         'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
                         [
-                            [
-                                'name'     => 'file',
-                                'contents' => fopen($file->getRealPath(), 'r'),
-                                'filename' => $file->getClientOriginalName(),
-                            ],
-                            [
-                                'name'     => 'upload_preset',
-                                'contents' => 'kedamark',
-                            ],
-                            [
-                                'name'     => 'folder',
-                                'contents' => 'progres_pembangunan'
-                            ],
+                            ['name' => 'file', 'contents' => fopen($file->getRealPath(), 'r'), 'filename' => $file->getClientOriginalName()],
+                            ['name' => 'upload_preset', 'contents' => env('CLOUDINARY_UPLOAD_PRESET', 'kedamark')],
+                            ['name' => 'folder', 'contents' => 'progres_pembangunan'],
                         ]
                     );
 
@@ -190,7 +174,7 @@ class ProgresController extends Controller
                     }
                 }
 
-                // Buat record progres baru (setiap update progres biasanya menambah record history)
+                // Logika: Update progres biasanya menambah record baru untuk menjaga history
                 Progres::create([
                     'unit_id'    => $id,
                     'persentase' => $request->persentase,
@@ -199,12 +183,12 @@ class ProgresController extends Controller
                     'foto'       => $fotoUrl,
                 ]);
 
-                // Update data progres di unit utama
+                // Sinkronisasi unit
                 $unit->update([
                     'progres' => $request->persentase
                 ]);
 
-                return redirect()->route('admin.progres.index')->with('success', 'Perubahan berhasil disimpan!');
+                return redirect()->route('admin.progres.index')->with('success', 'Data progres berhasil diperbarui!');
             });
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', 'Gagal update: ' . $e->getMessage());

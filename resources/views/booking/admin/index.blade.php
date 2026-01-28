@@ -54,6 +54,7 @@
         .btn-reject { background: #ef4444; }
         .btn-reject:hover { background: #dc2626; transform: translateY(-2px); }
         
+        /* Tombol Cabut Akses */
         .btn-revoke { background: #64748b; width: auto; padding: 0 15px; height: 32px; font-size: 10px; gap: 6px; }
         .btn-revoke:hover { background: #334155; transform: translateY(-2px); }
 
@@ -90,9 +91,8 @@
 
             <div>
                 @if($booking->dokumen)
-                    {{-- FIXED: Langsung menggunakan URL dari database (Cloudinary) --}}
-                    <a href="{{ $booking->dokumen }}" target="_blank" style="color: #1e5eff; font-weight: 800; text-decoration: none; font-size: 12px; display: flex; align-items: center; gap: 5px;">
-                        <i class="fas fa-id-card"></i> LIHAT KTP
+                    <a href="{{ asset('storage/'.$booking->dokumen) }}" target="_blank" style="color: #1e5eff; font-weight: 800; text-decoration: none; font-size: 12px; display: flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-file-pdf"></i> LIHAT
                     </a>
                 @else
                     <span style="color: #cbd5e1; font-size: 12px;">-</span>
@@ -107,6 +107,7 @@
 
             <div>
                 @if($booking->status == 'pending')
+                    {{-- Aksi untuk status Pending --}}
                     <div style="display: flex; gap: 10px;">
                         <button type="button" onclick="confirmAction('{{ $booking->id }}', 'approve', '{{ $booking->user->name ?? $booking->nama }}')" class="btn-action btn-approve" title="Setujui & Beri Akses">
                             <i class="fas fa-check"></i>
@@ -125,6 +126,7 @@
                         </form>
                     </div>
                 @elseif($booking->status == 'disetujui')
+                    {{-- Fitur Cabut Akses: Mengembalikan ke Pending --}}
                     <button type="button" onclick="confirmAction('{{ $booking->id }}', 'revoke', '{{ $booking->user->name ?? $booking->nama }}')" class="btn-action btn-revoke">
                         <i class="fas fa-undo-alt"></i> CABUT AKSES
                     </button>
@@ -144,7 +146,6 @@
     @endforelse
 </div>
 
-{{-- Script SweetAlert dan Konfirmasi tetap sama --}}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function confirmAction(id, action, name) {
@@ -162,7 +163,7 @@
             confirmColor = '#ef4444';
         } else {
             title = 'Cabut Akses?';
-            text = `Kembalikan status ke Pending & hapus akses milik ${name}`;
+            text = `Kembalikan status ke Pending & hapus notifikasi di sisi ${name}`;
             icon = 'warning';
             confirmColor = '#64748b';
         }

@@ -9,7 +9,8 @@ use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http; // Wajib untuk upload API
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class BookingController extends Controller
@@ -60,7 +61,7 @@ class BookingController extends Controller
     }
 
     /**
-     * CUSTOMER - SIMPAN BOOKING (Gaya HTTP Multipart untuk Vercel)
+     * CUSTOMER - SIMPAN BOOKING
      */
     public function store(Request $request)
     {
@@ -76,33 +77,24 @@ class BookingController extends Controller
 
         try {
             return DB::transaction(function () use ($request) {
+                // Lock unit untuk mencegah "Race Condition" (dua orang booking unit sama di waktu bersamaan)
                 $unit = Unit::lockForUpdate()->findOrFail($request->unit_id);
 
                 if ($unit->status !== 'Tersedia') {
-                    throw new Exception('Maaf, unit ini baru saja dibooking atau sudah tidak tersedia.');
+                    throw new Exception('Maaf, unit ini baru saja dibooking oleh orang lain atau sudah tidak tersedia.');
                 }
 
                 $pathKtp = null;
                 if ($request->hasFile('dokumen_ktp')) {
                     $file = $request->file('dokumen_ktp');
                     
-                    // Kirim request ke API Cloudinary secara manual
+                    // Request ke API Cloudinary
                     $response = Http::asMultipart()->post(
                         'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
                         [
-                            [
-                                'name'     => 'file',
-                                'contents' => fopen($file->getRealPath(), 'r'),
-                                'filename' => $file->getClientOriginalName(),
-                            ],
-                            [
-                                'name'     => 'upload_preset',
-                                'contents' => 'kedamark',
-                            ],
-                            [
-                                'name'     => 'folder',
-                                'contents' => 'dokumen_booking'
-                            ],
+                            ['name' => 'file', 'contents' => fopen($file->getRealPath(), 'r'), 'filename' => $file->getClientOriginalName()],
+                            ['name' => 'upload_preset', 'contents' => env('CLOUDINARY_UPLOAD_PRESET', 'kedamark')],
+                            ['name' => 'folder', 'contents' => 'dokumen_booking'],
                         ]
                     );
 
@@ -111,10 +103,12 @@ class BookingController extends Controller
                     if (isset($result['secure_url'])) {
                         $pathKtp = $result['secure_url'];
                     } else {
-                        throw new Exception('Gagal mengupload dokumen: ' . ($result['error']['message'] ?? 'Unknown error'));
+                        Log::error('Cloudinary Booking Error: ', $result);
+                        throw new Exception('Gagal mengupload dokumen KTP. Periksa koneksi atau konfigurasi.');
                     }
                 }
 
+                // Simpan Data Booking
                 Booking::create([
                     'user_id'         => Auth::id(),
                     'nama'            => Auth::user()->name, 
@@ -126,7 +120,7 @@ class BookingController extends Controller
                     'status'          => 'pending',
                 ]);
 
-                // Update status unit agar tidak bisa dipilih orang lain
+                // Update status unit menjadi 'Dibooking'
                 $unit->update(['status' => 'Dibooking']);
 
                 return redirect()->route('customer.booking.index')
@@ -160,25 +154,35 @@ class BookingController extends Controller
 
         try {
             return DB::transaction(function () use ($request, $booking) {
+                $oldStatus = $booking->status;
                 $booking->update(['status' => $request->status]);
                 $unit = $booking->unit;
 
                 if ($request->status == 'disetujui') {
+                    // Jika disetujui, unit dianggap terjual
                     $unit->update(['status' => 'Terjual']);
 
-                    Notification::updateOrCreate(
-                        ['user_id' => $booking->user_id, 'type' => 'booking'],
-                        [
-                            'title'   => 'Booking Disetujui!',
-                            'message' => 'Selamat! Booking Anda untuk Unit ' . $unit->no_unit . ' di ' . $unit->project->nama_proyek . ' telah disetujui.',
-                            'is_read' => false,
-                            'created_at' => now()
-                        ]
-                    );
-                } else {
+                    Notification::create([
+                        'user_id' => $booking->user_id,
+                        'type'    => 'booking',
+                        'title'   => 'Booking Disetujui!',
+                        'message' => 'Selamat! Booking Anda untuk Unit ' . $unit->no_unit . ' di ' . $unit->project->nama_proyek . ' telah disetujui.',
+                        'is_read' => false,
+                    ]);
+                } elseif ($request->status == 'ditolak') {
                     // Jika ditolak, kembalikan status unit ke 'Tersedia'
-                    $unit->update(['status' => ($request->status == 'pending' ? 'Dibooking' : 'Tersedia')]);
-                    Notification::where('user_id', $booking->user_id)->where('type', 'booking')->delete();
+                    $unit->update(['status' => 'Tersedia']);
+
+                    Notification::create([
+                        'user_id' => $booking->user_id,
+                        'type'    => 'booking',
+                        'title'   => 'Booking Ditolak',
+                        'message' => 'Mohon maaf, booking Anda untuk Unit ' . $unit->no_unit . ' telah ditolak oleh admin.',
+                        'is_read' => false,
+                    ]);
+                } else {
+                    // Jika status kembali ke pending
+                    $unit->update(['status' => 'Dibooking']);
                 }
 
                 return redirect()->route('admin.booking.index')

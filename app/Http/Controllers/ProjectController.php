@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http; // Wajib untuk upload ke API Cloudinary
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log; // Untuk mencatat error jika terjadi kegagalan API
 
 class ProjectController extends Controller
 {
@@ -36,7 +35,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * SIMPAN PROYEK BARU (Menggunakan API HTTP Multipart)
+     * SIMPAN PROYEK BARU
      */
     public function store(Request $request)
     {
@@ -52,39 +51,30 @@ class ProjectController extends Controller
             try {
                 $file = $request->file('gambar');
                 
-                // Request manual ke Cloudinary API (Tanpa SDK Library)
+                // Kirim ke API Cloudinary
                 $response = Http::asMultipart()->post(
                     'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
                     [
-                        [
-                            'name'     => 'file',
-                            'contents' => fopen($file->getRealPath(), 'r'),
-                            'filename' => $file->getClientOriginalName(),
-                        ],
-                        [
-                            'name'     => 'upload_preset',
-                            'contents' => 'kedamark', // Preset Anda
-                        ],
-                        [
-                            'name'     => 'folder',
-                            'contents' => 'projects',
-                        ],
+                        ['name' => 'file', 'contents' => fopen($file->getRealPath(), 'r'), 'filename' => $file->getClientOriginalName()],
+                        ['name' => 'upload_preset', 'contents' => env('CLOUDINARY_UPLOAD_PRESET', 'kedamark')],
+                        ['name' => 'folder', 'contents' => 'projects'],
                     ]
                 );
 
                 $result = $response->json();
 
                 if (isset($result['secure_url'])) {
-                    $input['gambar'] = $result['secure_url'];
+                    $input['gambar'] = $result['secure_url']; // URL lengkap (https://...)
                 } else {
-                    return back()->withErrors(['gambar' => 'Cloudinary Upload Error: ' . ($result['error']['message'] ?? 'Unknown error')]);
+                    return back()->withInput()->withErrors(['gambar' => 'Cloudinary Upload Gagal: ' . ($result['error']['message'] ?? 'Check Cloud Name/Preset')]);
                 }
             } catch (\Exception $e) {
-                return back()->withErrors(['gambar' => 'Cloudinary Connection Error: ' . $e->getMessage()]);
+                Log::error('Upload Error: ' . $e->getMessage());
+                return back()->withInput()->withErrors(['gambar' => 'Koneksi ke Cloudinary bermasalah.']);
             }
         }
 
-        // Mapping data tambahan
+        // Set Default Values
         $input['status']   = 'Sedang Berjalan';
         $input['tersedia'] = $request->total_unit;
         $input['booked']   = 0;
@@ -101,7 +91,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * UPDATE PROYEK (Menggunakan API HTTP Multipart)
+     * UPDATE PROYEK
      */
     public function update(Request $request, Project $project)
     {
@@ -115,9 +105,14 @@ class ProjectController extends Controller
 
         $data = $request->only(['nama_proyek', 'lokasi', 'total_unit', 'deskripsi']);
 
-        // Sinkronisasi Stok jika total unit berubah
+        // Logika Stok: Jika total unit diubah, pastikan tidak kurang dari yang sudah laku
         if ($request->total_unit != $project->total_unit) {
-            $data['tersedia'] = $request->total_unit - ($project->booked + $project->terjual);
+            $tersediaBaru = $request->total_unit - ($project->booked + $project->terjual);
+            
+            if ($tersediaBaru < 0) {
+                return back()->withErrors(['total_unit' => 'Total unit baru tidak mencukupi unit yang sudah dibooking/terjual!']);
+            }
+            $data['tersedia'] = $tersediaBaru;
         }
 
         if ($request->hasFile('gambar')) {
@@ -126,19 +121,9 @@ class ProjectController extends Controller
                 $response = Http::asMultipart()->post(
                     'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
                     [
-                        [
-                            'name'     => 'file',
-                            'contents' => fopen($file->getRealPath(), 'r'),
-                            'filename' => $file->getClientOriginalName(),
-                        ],
-                        [
-                            'name'     => 'upload_preset',
-                            'contents' => 'kedamark',
-                        ],
-                        [
-                            'name'     => 'folder',
-                            'contents' => 'projects',
-                        ],
+                        ['name' => 'file', 'contents' => fopen($file->getRealPath(), 'r'), 'filename' => $file->getClientOriginalName()],
+                        ['name' => 'upload_preset', 'contents' => env('CLOUDINARY_UPLOAD_PRESET', 'kedamark')],
+                        ['name' => 'folder', 'contents' => 'projects'],
                     ]
                 );
 
@@ -147,7 +132,7 @@ class ProjectController extends Controller
                     $data['gambar'] = $result['secure_url'];
                 }
             } catch (\Exception $e) {
-                return back()->withErrors(['gambar' => 'Cloudinary Error: ' . $e->getMessage()]);
+                return back()->withErrors(['gambar' => 'Gagal mengupdate gambar.']);
             }
         }
 
@@ -158,14 +143,12 @@ class ProjectController extends Controller
 
     public function destroy(Project $project)
     {
-        $sudahTerjual = $project->units()->where('status', 'Terjual')->count();
-
-        if ($sudahTerjual > 0) {
-            return redirect()->back()->with('error', 'Proyek tidak bisa dihapus karena sudah ada unit yang terjual!');
+        // Cek apakah ada unit yang terjual
+        if ($project->units()->where('status', 'Terjual')->exists()) {
+            return redirect()->back()->with('error', 'Proyek ini memiliki unit yang sudah terjual dan tidak bisa dihapus!');
         }
 
         $project->delete();
-
         return redirect()->route('admin.project.index')->with('success', 'Proyek berhasil dihapus!');
     }
 }
