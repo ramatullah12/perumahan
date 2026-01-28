@@ -12,15 +12,15 @@ class Booking extends Model
 
     protected $fillable = [
         'user_id',
+        'nama',            // Tambahkan ini agar error 'Field nama' hilang
         'project_id',
         'unit_id',
         'tanggal_booking',
         'dokumen',
         'keterangan',
-        'status', // pastikan di database defaultnya 'pending'
+        'status', 
     ];
 
-    // Tambahkan casting tanggal agar Carbon bisa membaca formatnya di Blade
     protected $casts = [
         'tanggal_booking' => 'date',
     ];

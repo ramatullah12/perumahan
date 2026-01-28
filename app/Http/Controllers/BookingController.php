@@ -16,34 +16,27 @@ use Exception;
 class BookingController extends Controller
 {
     /**
-     * MAIN INDEX - Menghilangkan Error index()
+     * Menampilkan daftar booking berdasarkan Role.
      */
     public function index()
     {
-        // Mendeteksi role dari user yang sedang login
         if (Auth::user()->role === 'admin') {
             return $this->indexAdmin();
         }
         return $this->indexCustomer();
     }
 
-    /**
-     * CUSTOMER - DAFTAR BOOKING
-     */
     public function indexCustomer()
     {
+        // Memuat relasi berlapis: Unit -> Project & Unit -> Tipe
         $bookings = Booking::with(['unit.project', 'unit.tipe'])
             ->where('user_id', Auth::id())
             ->latest()
             ->get();
 
-        // Sesuai dengan folder path Anda: booking/customer/index.blade.php
         return view('booking.customer.index', compact('bookings'));
     }
 
-    /**
-     * ADMIN - DAFTAR SEMUA BOOKING
-     */
     public function indexAdmin()
     {
         $bookings = Booking::with(['user', 'unit.project', 'unit.tipe'])
@@ -54,28 +47,45 @@ class BookingController extends Controller
     }
 
     /**
-     * CUSTOMER - FORM BOOKING BARU (Perbaikan Unit Tidak Muncul)
+     * AJAX - AMBIL UNIT BERDASARKAN PROYEK
+     * Ini memastikan Tipe Unit muncul secara dinamis di form.
+     */
+    public function getUnitsByProject($projectId)
+    {
+        // Eager load 'tipe' agar harga dan nama tipe bisa diakses
+        $units = Unit::with(['tipe'])
+            ->where('project_id', $projectId)
+            ->where('status', 'Tersedia') 
+            ->get()
+            ->map(function ($unit) {
+                return [
+                    'id' => $unit->id,
+                    'block' => $unit->block,
+                    'no_unit' => $unit->no_unit,
+                    'nama_tipe' => $unit->tipe ? $unit->tipe->nama_tipe : 'N/A',
+                    'harga' => $unit->tipe ? $unit->tipe->harga : 0,
+                    'harga_format' => $unit->tipe ? 'Rp ' . number_format($unit->tipe->harga, 0, ',', '.') : 'Rp 0'
+                ];
+            });
+
+        return response()->json($units);
+    }
+
+    /**
+     * Tampilan form booking baru untuk Customer.
      */
     public function create()
     {
-        // Mengambil data unit dan mengelompokkan per proyek untuk dikirim langsung ke view
-        $units = Unit::with(['project', 'tipe'])
-            ->where('status', 'Tersedia')
-            ->get()
-            ->groupBy(function($item) {
-                return $item->project->nama_proyek ?? 'Tanpa Proyek';
-            });
-
-        // Tetap kirim $projects jika Anda ingin menggunakan fitur AJAX nantinya
+        // Ambil proyek yang memiliki setidaknya satu unit tersedia
         $projects = Project::whereHas('units', function($q) {
             $q->where('status', 'Tersedia');
         })->get();
 
-        return view('booking.customer.create', compact('projects', 'units'));
+        return view('booking.customer.create', compact('projects'));
     }
 
     /**
-     * CUSTOMER - SIMPAN DATA BOOKING
+     * Proses penyimpanan booking baru dengan proteksi transaksi.
      */
     public function store(Request $request)
     {
@@ -91,18 +101,18 @@ class BookingController extends Controller
 
         try {
             return DB::transaction(function () use ($request) {
-                // Lock unit untuk mencegah double booking
+                // Lock unit untuk mencegah double booking di milidetik yang sama
                 $unit = Unit::lockForUpdate()->findOrFail($request->unit_id);
 
                 if ($unit->status !== 'Tersedia') {
-                    throw new Exception('Maaf, unit ini sudah tidak tersedia.');
+                    throw new Exception('Maaf, unit ini baru saja dipesan oleh orang lain.');
                 }
 
+                // Logika Upload ke Cloudinary
                 $pathKtp = null;
                 if ($request->hasFile('dokumen_ktp')) {
                     $file = $request->file('dokumen_ktp');
                     
-                    // Upload ke Cloudinary
                     $response = Http::asMultipart()->post(
                         'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
                         [
@@ -116,14 +126,15 @@ class BookingController extends Controller
                     if (isset($result['secure_url'])) {
                         $pathKtp = $result['secure_url'];
                     } else {
-                        throw new Exception('Gagal mengupload dokumen ke Cloudinary.');
+                        Log::error('Cloudinary Error: ', $result);
+                        throw new Exception('Gagal mengunggah dokumen ke server.');
                     }
                 }
 
-                // Buat data booking
+                // Simpan data ke tabel Bookings
                 Booking::create([
                     'user_id'         => Auth::id(),
-                    'nama'            => Auth::user()->name, 
+                    'nama'            => Auth::user()->name, // Mengisi kolom nama yang sebelumnya error
                     'project_id'      => $unit->project_id,
                     'unit_id'         => $unit->id,
                     'tanggal_booking' => $request->tanggal_booking,
@@ -132,19 +143,20 @@ class BookingController extends Controller
                     'status'          => 'pending',
                 ]);
 
-                // Update status unit menjadi 'Dibooking' agar tidak dibooking orang lain
+                // Update status unit menjadi 'Dibooking' (menghilangkan dari daftar 'Tersedia')
                 $unit->update(['status' => 'Dibooking']);
 
                 return redirect()->route('customer.booking.index')
-                    ->with('success', 'Booking berhasil diajukan! Tunggu verifikasi admin.');
+                    ->with('success', 'Booking berhasil diajukan! Silakan tunggu verifikasi admin.');
             });
         } catch (Exception $e) {
+            Log::error('Booking Error: ' . $e->getMessage());
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
     }
 
     /**
-     * ADMIN - UPDATE STATUS (SETUJU/TOLAK)
+     * Update status oleh Admin (Setujui/Tolak).
      */
     public function updateStatus(Request $request, Booking $booking)
     {
@@ -157,22 +169,25 @@ class BookingController extends Controller
 
                 if ($request->status == 'disetujui') {
                     $unit->update(['status' => 'Terjual']);
-                    $this->createNotification($booking->user_id, 'Booking Disetujui!', 'Booking Unit ' . $unit->no_unit . ' telah disetujui.');
+                    $this->createNotification($booking->user_id, 'Booking Disetujui!', "Booking unit {$unit->block}-{$unit->no_unit} telah disetujui.");
                 } elseif ($request->status == 'ditolak') {
-                    // Unit tersedia kembali jika ditolak
+                    // Unit dikembalikan ke status 'Tersedia' agar bisa dipesan lagi
                     $unit->update(['status' => 'Tersedia']);
-                    $this->createNotification($booking->user_id, 'Booking Ditolak', 'Booking Unit ' . $unit->no_unit . ' ditolak.');
+                    $this->createNotification($booking->user_id, 'Booking Ditolak', "Mohon maaf, booking unit {$unit->block}-{$unit->no_unit} ditolak.");
                 }
 
-                return redirect()->route('admin.booking.index')->with('success', 'Status berhasil diperbarui.');
+                return redirect()->route('admin.booking.index')->with('success', 'Status booking berhasil diperbarui.');
             });
         } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal memperbarui status: ' . $e->getMessage());
         }
     }
 
-    // Helper untuk notifikasi agar kode lebih bersih
-    private function createNotification($userId, $title, $message) {
+    /**
+     * Notifikasi Internal
+     */
+    private function createNotification($userId, $title, $message) 
+    {
         Notification::create([
             'user_id' => $userId,
             'type'    => 'booking',
