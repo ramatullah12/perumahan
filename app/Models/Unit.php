@@ -20,7 +20,7 @@ class Unit extends Model
         'status', // 'Tersedia', 'Dibooking', 'Terjual'
         'progres', 
         'harga',
-        'gambar', // Pastikan kolom gambar ada di fillable jika ingin upload foto
+        'gambar', // Pastikan kolom gambar ada di fillable jika ingin upload fotokvjdj
     ];
 
     /**
