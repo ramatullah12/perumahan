@@ -29,7 +29,7 @@ class Project extends Model
     public function tipes(): HasMany
     {
         // Pastikan nama file model Anda adalah tipe.php (huruf kecil)
-        return $this->hasMany(tipe::class, 'project_id');
+        return $this->hasMany(Tipe::class, 'project_id');
     }
 
     /**
