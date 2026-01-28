@@ -16,11 +16,11 @@ use Exception;
 class BookingController extends Controller
 {
     /**
-     * MAIN INDEX
-     * Menangani rute standar 'booking.index' dan mengarahkan berdasarkan role.
+     * MAIN INDEX - Menghilangkan Error index()
      */
     public function index()
     {
+        // Mendeteksi role dari user yang sedang login
         if (Auth::user()->role === 'admin') {
             return $this->indexAdmin();
         }
@@ -37,6 +37,7 @@ class BookingController extends Controller
             ->latest()
             ->get();
 
+        // Sesuai dengan folder path Anda: booking/customer/index.blade.php
         return view('booking.customer.index', compact('bookings'));
     }
 
@@ -53,44 +54,24 @@ class BookingController extends Controller
     }
 
     /**
-     * DETAIL BOOKING (ADMIN & CUSTOMER)
-     */
-    public function show(Booking $booking)
-    {
-        // Pastikan customer hanya bisa melihat booking miliknya sendiri
-        if (Auth::user()->role === 'customer' && $booking->user_id !== Auth::id()) {
-            abort(403, 'Akses ditolak.');
-        }
-
-        $booking->load(['user', 'unit.project', 'unit.tipe']);
-        
-        $view = Auth::user()->role === 'admin' ? 'booking.admin.show' : 'booking.customer.show';
-        return view($view, compact('booking'));
-    }
-
-    /**
-     * CUSTOMER - FORM BOOKING BARU
+     * CUSTOMER - FORM BOOKING BARU (Perbaikan Unit Tidak Muncul)
      */
     public function create()
     {
+        // Mengambil data unit dan mengelompokkan per proyek untuk dikirim langsung ke view
+        $units = Unit::with(['project', 'tipe'])
+            ->where('status', 'Tersedia')
+            ->get()
+            ->groupBy(function($item) {
+                return $item->project->nama_proyek ?? 'Tanpa Proyek';
+            });
+
+        // Tetap kirim $projects jika Anda ingin menggunakan fitur AJAX nantinya
         $projects = Project::whereHas('units', function($q) {
             $q->where('status', 'Tersedia');
         })->get();
 
-        return view('booking.customer.create', compact('projects'));
-    }
-
-    /**
-     * AJAX - AMBIL UNIT BERDASARKAN PROYEK
-     */
-    public function getUnitsByProject($projectId)
-    {
-        $units = Unit::with('tipe')
-            ->where('project_id', $projectId)
-            ->where('status', 'Tersedia')
-            ->get();
-
-        return response()->json($units);
+        return view('booking.customer.create', compact('projects', 'units'));
     }
 
     /**
@@ -110,11 +91,11 @@ class BookingController extends Controller
 
         try {
             return DB::transaction(function () use ($request) {
-                // Lock unit untuk mencegah double booking di milidetik yang sama
+                // Lock unit untuk mencegah double booking
                 $unit = Unit::lockForUpdate()->findOrFail($request->unit_id);
 
                 if ($unit->status !== 'Tersedia') {
-                    throw new Exception('Maaf, unit ini baru saja dibooking atau tidak tersedia.');
+                    throw new Exception('Maaf, unit ini sudah tidak tersedia.');
                 }
 
                 $pathKtp = null;
@@ -132,16 +113,15 @@ class BookingController extends Controller
                     );
 
                     $result = $response->json();
-
                     if (isset($result['secure_url'])) {
                         $pathKtp = $result['secure_url'];
                     } else {
-                        Log::error('Cloudinary Error: ', $result);
-                        throw new Exception('Gagal mengupload dokumen KTP.');
+                        throw new Exception('Gagal mengupload dokumen ke Cloudinary.');
                     }
                 }
 
-                $booking = Booking::create([
+                // Buat data booking
+                Booking::create([
                     'user_id'         => Auth::id(),
                     'nama'            => Auth::user()->name, 
                     'project_id'      => $unit->project_id,
@@ -152,11 +132,11 @@ class BookingController extends Controller
                     'status'          => 'pending',
                 ]);
 
-                // Update status unit menjadi 'Dibooking'
+                // Update status unit menjadi 'Dibooking' agar tidak dibooking orang lain
                 $unit->update(['status' => 'Dibooking']);
 
                 return redirect()->route('customer.booking.index')
-                    ->with('success', 'Booking berhasil! Silakan tunggu verifikasi admin.');
+                    ->with('success', 'Booking berhasil diajukan! Tunggu verifikasi admin.');
             });
         } catch (Exception $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
@@ -168,9 +148,7 @@ class BookingController extends Controller
      */
     public function updateStatus(Request $request, Booking $booking)
     {
-        $request->validate([
-            'status' => 'required|in:disetujui,ditolak,pending',
-        ]);
+        $request->validate(['status' => 'required|in:disetujui,ditolak,pending']);
 
         try {
             return DB::transaction(function () use ($request, $booking) {
@@ -179,34 +157,28 @@ class BookingController extends Controller
 
                 if ($request->status == 'disetujui') {
                     $unit->update(['status' => 'Terjual']);
-
-                    Notification::create([
-                        'user_id' => $booking->user_id,
-                        'type'    => 'booking',
-                        'title'   => 'Booking Disetujui!',
-                        'message' => 'Booking Anda untuk Unit ' . $unit->no_unit . ' telah disetujui.',
-                        'is_read' => false,
-                    ]);
+                    $this->createNotification($booking->user_id, 'Booking Disetujui!', 'Booking Unit ' . $unit->no_unit . ' telah disetujui.');
                 } elseif ($request->status == 'ditolak') {
-                    // Jika ditolak, unit tersedia kembali
+                    // Unit tersedia kembali jika ditolak
                     $unit->update(['status' => 'Tersedia']);
-
-                    Notification::create([
-                        'user_id' => $booking->user_id,
-                        'type'    => 'booking',
-                        'title'   => 'Booking Ditolak',
-                        'message' => 'Mohon maaf, booking Anda untuk Unit ' . $unit->no_unit . ' ditolak.',
-                        'is_read' => false,
-                    ]);
-                } else {
-                    $unit->update(['status' => 'Dibooking']);
+                    $this->createNotification($booking->user_id, 'Booking Ditolak', 'Booking Unit ' . $unit->no_unit . ' ditolak.');
                 }
 
-                return redirect()->route('admin.booking.index')
-                    ->with('success', 'Status booking berhasil diperbarui.');
+                return redirect()->route('admin.booking.index')->with('success', 'Status berhasil diperbarui.');
             });
         } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
         }
+    }
+
+    // Helper untuk notifikasi agar kode lebih bersih
+    private function createNotification($userId, $title, $message) {
+        Notification::create([
+            'user_id' => $userId,
+            'type'    => 'booking',
+            'title'   => $title,
+            'message' => $message,
+            'is_read' => false,
+        ]);
     }
 }

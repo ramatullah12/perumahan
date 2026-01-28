@@ -27,24 +27,30 @@ class Unit extends Model
         return $this->belongsTo(Project::class, 'project_id');
     }
 
-    /**
-     * PERBAIKAN: Nama class harus Tipe (Capital T) 
-     * Ini penyebab error 500 pada gambar image_98415e.png
-     */
     public function tipe(): BelongsTo
     {
         return $this->belongsTo(Tipe::class, 'tipe_id');
     }
 
-    // Menggunakan hasMany untuk daftar progres
+    /**
+     * PERBAIKAN: Tambahkan alias progres_history
+     * Agar query di ProgresController $bookings = Booking::with(['unit.progres_history']) tidak error.
+     */
+    public function progres_history(): HasMany 
+    {
+        return $this->hasMany(Progres::class, 'unit_id')->latest();
+    }
+
+    /**
+     * Relasi progres (tetap dipertahankan jika ada bagian lain yang pakai)
+     */
     public function progres(): HasMany 
     {
         return $this->hasMany(Progres::class, 'unit_id')->latest();
     }
 
     /**
-     * PERBAIKAN: Gunakan nama ini di Blade untuk ambil data terbaru.
-     * Pastikan di Blade Customer memanggil $unit->latestProgres
+     * Digunakan di Controller Admin/Owner untuk mengambil data terbaru saja
      */
     public function latestProgres(): HasOne
     {

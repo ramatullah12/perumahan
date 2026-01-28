@@ -10,41 +10,31 @@ class Booking extends Model
 {
     use HasFactory;
 
-    /**
-     * Kolom yang dapat diisi secara massal.
-     * Menambahkan 'project_id', 'unit_id', 'tanggal_booking', dan 'dokumen'.
-     */
     protected $fillable = [
         'user_id',
-        'nama',
-        'project_id',   // Menghubungkan ke Proyek
-        'unit_id',      // Menghubungkan ke Unit (Pusat Data)
+        'project_id',
+        'unit_id',
         'tanggal_booking',
-        'dokumen',      // Untuk menyimpan foto KTP/NPWP
-        'keterangan',   // Pengganti catatan
-        'status',       // pending / disetujui / ditolak
+        'dokumen',
+        'keterangan',
+        'status', // pastikan di database defaultnya 'pending'
     ];
 
-    /**
-     * Relasi ke User: Satu booking dimiliki oleh satu user.
-     */
+    // Tambahkan casting tanggal agar Carbon bisa membaca formatnya di Blade
+    protected $casts = [
+        'tanggal_booking' => 'date',
+    ];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    /**
-     * Relasi ke Unit: Menghubungkan booking dengan unit rumah spesifik.
-     * Ini kunci agar status unit bisa berubah otomatis.
-     */
     public function unit(): BelongsTo
     {
         return $this->belongsTo(Unit::class, 'unit_id');
     }
 
-    /**
-     * Relasi ke Project: Memudahkan filter laporan berdasarkan proyek.
-     */
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'project_id');
