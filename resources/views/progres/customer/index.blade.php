@@ -17,19 +17,25 @@
 
     @forelse($bookings as $b)
         @php
-            // Memastikan data unit tersedia untuk menghindari error 'Trying to get property of non-object'
             $unit = $b->unit;
             $persentase = $unit->progres ?? 0;
             $persentase = max(0, min(100, (int)$persentase));
 
-            // Mengambil histori terbaru. 
-            // Disarankan di Controller menggunakan: $bookings->load('unit.latestProgres')
+            // Mengambil histori terbaru dari relasi yang sudah ada
             $latestHistory = $unit->latestProgres ?? null; 
+
+            // LOGIKA PERBAIKAN GAMBAR:
+            $fotoPath = $latestHistory->foto ?? null;
+            $urlFinal = null;
+
+            if ($fotoPath) {
+                // Jika isinya link (http), jangan pakai asset('storage/'). Jika bukan link, pakai asset('storage/')
+                $urlFinal = str_starts_with($fotoPath, 'http') ? $fotoPath : asset('storage/' . $fotoPath);
+            }
         @endphp
 
         <div style="background: white; border-radius: 32px; padding: clamp(20px, 5vw, 40px); border: 1px solid #e2e8f0; margin-bottom: 35px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.04); position: relative; overflow: hidden;">
             
-            {{-- AKSEN STATUS SAMPING --}}
             <div style="position: absolute; top: 0; left: 0; width: 8px; height: 100%; background: linear-gradient(to bottom, #1e5eff, #3b82f6);"></div>
 
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 35px; flex-wrap: wrap; gap: 20px;">
@@ -47,7 +53,6 @@
                 </div>
                 <div>
                     @php
-                        // Logika warna status
                         $statusBg = '#f0fdf4'; $statusColor = '#166534'; $dotColor = '#22c55e';
                         if(strtolower($b->status) == 'pending') {
                             $statusBg = '#fff7ed'; $statusColor = '#9a3412'; $dotColor = '#f97316';
@@ -60,7 +65,6 @@
                 </div>
             </div>
 
-            {{-- PROGRESS BAR AREA --}}
             <div style="background: #f8fafc; padding: clamp(20px, 4vw, 30px); border-radius: 24px; border: 1px solid #f1f5f9; margin-bottom: 35px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <span style="color: #475569; font-weight: 800; font-size: 16px;">
@@ -73,7 +77,6 @@
                     </div>
                 </div>
                 
-                {{-- TRACK BAR --}}
                 <div style="width: 100%; background: #e2e8f0; height: 22px; border-radius: 14px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
                     <div style="width: {{ $persentase }}%; 
                                 background: linear-gradient(90deg, #1e5eff 0%, #60a5fa 100%); 
@@ -87,30 +90,26 @@
                 </div>
             </div>
 
-            {{-- INFO FOOTER - Menggunakan CSS Grid yang responsif --}}
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 35px;">
-                
-                {{-- CATATAN LAPANGAN --}}
                 <div>
                     <h5 style="font-size: 15px; font-weight: 900; color: #1e293b; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
                         <i class="fas fa-clipboard-list" style="color: #1e5eff;"></i> Catatan Pembangunan:
                     </h5>
                     <div style="background: #ffffff; padding: 25px; border-radius: 20px; border: 1px solid #f1f5f9; min-height: 120px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); display: flex; align-items: center;">
                         <p style="margin: 0; font-size: 15px; color: #64748b; line-height: 1.7; font-style: italic;">
-                            "{{ $latestHistory->keterangan ?? 'Tim kami sedang memproses pembangunan di lokasi. Pembaruan data foto akan dilakukan segera setelah progres fisik terlihat di lapangan.' }}"
+                            "{{ $latestHistory->keterangan ?? 'Tim kami sedang memproses pembangunan di lokasi.' }}"
                         </p>
                     </div>
                 </div>
 
-                {{-- FOTO DOKUMENTASI --}}
                 <div>
                     <h5 style="font-size: 15px; font-weight: 900; color: #1e293b; margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
                         <i class="fas fa-camera" style="color: #1e5eff;"></i> Dokumentasi Terbaru:
                     </h5>
                     <div style="position: relative;">
-                        @if($latestHistory && $latestHistory->foto)
-                            <a href="{{ asset('storage/' . $latestHistory->foto) }}" target="_blank" style="text-decoration: none; display: block; border-radius: 20px; overflow: hidden; border: 4px solid white; box-shadow: 0 15px 30px -5px rgba(0,0,0,0.12); transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                                <img src="{{ asset('storage/' . $latestHistory->foto) }}" 
+                        @if($urlFinal)
+                            <a href="{{ $urlFinal }}" target="_blank" style="text-decoration: none; display: block; border-radius: 20px; overflow: hidden; border: 4px solid white; box-shadow: 0 15px 30px -5px rgba(0,0,0,0.12); transition: transform 0.3s ease;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                                <img src="{{ $urlFinal }}" 
                                      style="width: 100%; height: 220px; object-fit: cover; display: block;"
                                      alt="Dokumentasi Unit">
                                 <div style="position: absolute; bottom: 15px; right: 15px; background: rgba(0,0,0,0.5); color: white; padding: 5px 12px; border-radius: 8px; font-size: 11px; backdrop-filter: blur(4px);">
@@ -121,7 +120,6 @@
                             <div style="width: 100%; height: 220px; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #cbd5e1;">
                                 <i class="fas fa-hard-hat" style="font-size: 45px; margin-bottom: 12px; opacity: 0.5;"></i>
                                 <span style="font-size: 13px; font-weight: 800; color: #94a3b8;">Belum Ada Foto Dokumentasi</span>
-                                <small style="font-size: 11px; margin-top: 5px;">Progres: {{ $persentase }}%</small>
                             </div>
                         @endif
                     </div>
@@ -129,27 +127,9 @@
             </div>
         </div>
     @empty
-        {{-- EMPTY STATE --}}
         <div style="text-align: center; padding: 100px 40px; background: white; border-radius: 48px; border: 3px dashed #e2e8f0; margin-top: 20px;">
-            <div style="background: #f1f5f9; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px;">
-                <i class="fas fa-home" style="font-size: 30px; color: #cbd5e1;"></i>
-            </div>
-            <h3 style="color: #1e293b; font-weight: 900; font-size: 26px; margin-bottom: 15px;">Belum Ada Data Progres</h3>
-            <p style="color: #64748b; font-size: 16px; max-width: 450px; margin: 0 auto; line-height: 1.6;">
-                Pemesanan Anda sedang diverifikasi oleh tim administrasi. Data pembangunan akan muncul secara otomatis di sini.
-            </p>
+            <p style="color: #64748b;">Belum Ada Data Progres</p>
         </div>
     @endforelse
 </div>
-
-{{-- CSS KHUSUS UNTUK ANIMASI HALUS --}}
-<style>
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .booking-card {
-        animation: slideIn 0.6s ease-out forwards;
-    }
-</style>
 @endsection

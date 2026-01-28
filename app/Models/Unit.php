@@ -12,10 +12,6 @@ class Unit extends Model
 {
     use HasFactory;
 
-    /**
-     * Kolom yang dapat diisi secara massal (mass assignable).
-     * Memastikan 'no_unit' konsisten dengan database.
-     */
     protected $fillable = [
         'project_id',
         'tipe_id',
@@ -26,76 +22,42 @@ class Unit extends Model
         'harga', 
     ];
 
-    /**
-     * Relasi ke Model Project (Belongs To).
-     */
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class, 'project_id');
     }
 
     /**
-     * Relasi ke Model Tipe.
+     * PERBAIKAN: Nama class harus Tipe (Capital T) 
+     * Ini penyebab error 500 pada gambar image_98415e.png
      */
     public function tipe(): BelongsTo
     {
-        return $this->belongsTo(tipe::class, 'tipe_id');
+        return $this->belongsTo(Tipe::class, 'tipe_id');
     }
 
-    // =========================================================
-    // FITUR PROGRES & BOOKING
-    // =========================================================
-
-    /**
-     * PERBAIKAN KRUSIAL: Menambahkan relasi 'progres'.
-     * Ini untuk menyamakan pemanggilan 'unit.progres' di ProgresController.
-     */
+    // Menggunakan hasMany untuk daftar progres
     public function progres(): HasMany 
     {
         return $this->hasMany(Progres::class, 'unit_id')->latest();
     }
 
     /**
-     * Relasi progres terbaru untuk ringkasan admin/owner.
+     * PERBAIKAN: Gunakan nama ini di Blade untuk ambil data terbaru.
+     * Pastikan di Blade Customer memanggil $unit->latestProgres
      */
     public function latestProgres(): HasOne
     {
         return $this->hasOne(Progres::class, 'unit_id')->latestOfMany();
     }
 
-    /**
-     * Relasi histori progres pembangunan lengkap.
-     */
-    public function progres_history(): HasMany 
-    {
-        return $this->hasMany(Progres::class, 'unit_id')->latest();
-    }
-
-    /**
-     * Relasi ke data Booking unit.
-     */
     public function booking(): HasOne
     {
         return $this->hasOne(Booking::class, 'unit_id');
     }
 
-    // =========================================================
-    // ACCESSORS (Untuk Tampilan di Blade)
-    // =========================================================
-
-    /**
-     * Menggabungkan Blok dan Nomor Unit.
-     */
     public function getNamaUnitAttribute(): string
     {
         return "Blok {$this->block} No. {$this->no_unit}";
-    }
-    
-    /**
-     * Format harga Rupiah profesional.
-     */
-    public function getHargaFormattedAttribute(): string
-    {
-        return "Rp " . number_format($this->harga, 0, ',', '.');
     }
 }

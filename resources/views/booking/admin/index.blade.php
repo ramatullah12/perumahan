@@ -7,10 +7,10 @@
         .booking-title { font-size: 28px; font-weight: 900; color: #1e293b; margin-bottom: 4px; letter-spacing: -1px; }
         .booking-sub { color: #64748b; font-size: 14px; margin-bottom: 30px; font-weight: 500; }
         
-        /* Menggunakan Grid yang lebih fleksibel */
+        /* Layout Grid yang Presisi */
         .grid-layout {
             display: grid;
-            grid-template-columns: 1.5fr 1.5fr 1fr 0.8fr 1fr 180px;
+            grid-template-columns: 1.5fr 1.5fr 1fr 1.2fr 1fr 180px;
             gap: 15px;
             align-items: center;
         }
@@ -44,6 +44,7 @@
             transform: translateY(-2px);
         }
 
+        /* Status Badge Styling */
         .badge-status {
             padding: 6px 12px;
             border-radius: 10px;
@@ -58,6 +59,7 @@
         .status-disetujui { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
         .status-ditolak { background: #fef2f2; color: #b91c1c; border: 1px solid #fee2e2; }
 
+        /* Action Buttons */
         .btn-action { 
             width: 38px; height: 38px; border-radius: 12px; 
             border: none; cursor: pointer; transition: 0.3s; 
@@ -78,25 +80,40 @@
         }
         .btn-revoke:hover { background: #e2e8f0; color: #1e293b; }
 
+        .btn-cloud {
+            background: #eff6ff;
+            color: #1e5eff;
+            font-weight: 800;
+            text-decoration: none;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid #dbeafe;
+            transition: 0.2s;
+        }
+        .btn-cloud:hover { background: #1e5eff; color: white; }
+
         .form-hidden { display: none !important; }
 
-        /* Responsivitas Sederhana */
         @media (max-width: 1024px) {
-            .grid-layout { grid-template-columns: 1fr 1fr 1fr; }
+            .grid-layout { grid-template-columns: 1fr 1fr; }
             .table-header { display: none; }
-            .action-cell { grid-column: span 3; justify-content: flex-start; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
+            .action-cell { grid-column: span 2; justify-content: flex-start; margin-top: 15px; border-top: 1px solid #f1f5f9; padding-top: 15px; }
         }
     </style>
 
     <div class="booking-title">Manajemen Booking</div>
-    <div class="booking-sub">Validasi permohonan unit dan kontrol akses sistem customer</div>
+    <div class="booking-sub">Validasi dokumen via Cloudinary & kontrol akses unit customer</div>
 
     {{-- Header Tabel --}}
     <div class="table-header grid-layout">
         <div>Customer</div>
         <div>Proyek & Unit</div>
         <div>Tanggal</div>
-        <div>Dokumen</div>
+        <div>Dokumen (Cloud)</div>
         <div>Status</div>
         <div style="text-align: right;">Aksi</div>
     </div>
@@ -126,14 +143,24 @@
                 {{ \Carbon\Carbon::parse($booking->tanggal_booking)->translatedFormat('d M Y') }}
             </div>
 
-            {{-- Dokumen --}}
+            {{-- Dokumen dengan Deteksi Cloudinary --}}
             <div>
-                @if($booking->dokumen)
-                    <a href="{{ asset('storage/'.$booking->dokumen) }}" target="_blank" style="color: #1e5eff; font-weight: 800; text-decoration: none; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; padding: 6px 10px; border-radius: 8px;">
-                        <i class="fas fa-id-card"></i> KTP.PDF
+                @php
+                    $path = $booking->dokumen;
+                    // Cek apakah string diawali dengan http (Cloudinary) atau path lokal
+                    $isExternal = Str::startsWith($path, ['http://', 'https://']);
+                    $finalUrl = $isExternal ? $path : asset('storage/' . $path);
+                @endphp
+
+                @if($path)
+                    <a href="{{ $finalUrl }}" target="_blank" class="btn-cloud">
+                        <i class="{{ $isExternal ? 'fas fa-cloud' : 'fas fa-file-pdf' }}"></i>
+                        {{ $isExternal ? 'BUKA CLOUDINARY' : 'KTP.PDF' }}
                     </a>
                 @else
-                    <span style="color: #cbd5e1; font-size: 12px; font-style: italic;">Tidak ada file</span>
+                    <span style="color: #cbd5e1; font-size: 12px; font-style: italic;">
+                        <i class="fas fa-exclamation-circle me-1"></i>Belum Upload
+                    </span>
                 @endif
             </div>
 
@@ -172,8 +199,8 @@
                     </form>
                 @else
                     <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                        <span style="font-size: 10px; font-weight: 800; color: #94a3b8; letter-spacing: 1px;">FINALIZED</span>
-                        <span style="font-size: 9px; color: #cbd5e1;">No further action</span>
+                        <span style="font-size: 10px; font-weight: 800; color: #94a3b8; letter-spacing: 1px;">SELESAI</span>
+                        <span style="font-size: 9px; color: #cbd5e1;">Data Terarsip</span>
                     </div>
                 @endif
             </div>
@@ -181,19 +208,19 @@
     @empty
         <div style="background: white; border-radius: 20px; padding: 60px; text-align: center; border: 2px dashed #e2e8f0;">
             <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" style="width: 80px; opacity: 0.2; margin-bottom: 20px;">
-            <div style="color: #94a3b8; font-weight: 600;">Belum ada antrian data booking masuk.</div>
+            <div style="color: #94a3b8; font-weight: 600;">Belum ada data booking yang masuk.</div>
         </div>
     @endforelse
 </div>
 
-{{-- Scripting --}}
+{{-- Scripting SweetAlert2 --}}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     function confirmAction(id, action, name) {
         let config = {
-            approve: { title: 'Setujui?', text: `Beri akses progres pembangunan untuk ${name}`, icon: 'success', color: '#10b981' },
-            reject: { title: 'Tolak?', text: `Batalkan pemesanan unit untuk ${name}`, icon: 'error', color: '#ef4444' },
-            revoke: { title: 'Cabut Akses?', text: `Kembalikan ke Pending & sembunyikan fitur progres dari ${name}`, icon: 'warning', color: '#64748b' }
+            approve: { title: 'Setujui Pesanan?', text: `Konfirmasi dokumen & beri akses dashboard untuk ${name}`, icon: 'success', color: '#10b981' },
+            reject: { title: 'Tolak Pesanan?', text: `Dokumen tidak valid atau unit batal dipesan oleh ${name}`, icon: 'error', color: '#ef4444' },
+            revoke: { title: 'Cabut Akses?', text: `Batalkan status disetujui untuk ${name}`, icon: 'warning', color: '#64748b' }
         };
 
         const selected = config[action];
@@ -205,19 +232,16 @@
             showCancelButton: true,
             confirmButtonColor: selected.color,
             cancelButtonColor: '#94a3b8',
-            confirmButtonText: 'Ya, Eksekusi!',
+            confirmButtonText: 'Ya, Proses',
             cancelButtonText: 'Batal',
             reverseButtons: true,
-            padding: '2em',
             customClass: {
-                popup: 'swal-rounded',
-                confirmButton: 'swal-button-radius'
+                popup: 'swal-rounded'
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                // Tampilkan loading saat proses
                 Swal.fire({
-                    title: 'Memproses...',
+                    title: 'Sinkronisasi Cloud...',
                     allowOutsideClick: false,
                     didOpen: () => { Swal.showLoading(); }
                 });
@@ -228,23 +252,20 @@
 </script>
 
 <style>
-    /* Custom Styling untuk SweetAlert agar serasi */
-    .swal-rounded { border-radius: 24px !important; font-family: 'Inter', sans-serif; }
-    .swal-button-radius { border-radius: 12px !important; font-weight: 700 !important; }
+    .swal-rounded { border-radius: 24px !important; }
 </style>
 
+{{-- Notifikasi Sukses --}}
 @if(session('success'))
 <script>
-    const Toast = Swal.mixin({
+    Swal.fire({
         toast: true,
         position: 'top-end',
+        icon: 'success',
+        title: "{{ session('success') }}",
         showConfirmButton: false,
         timer: 3000,
         timerProgressBar: true
-    });
-    Toast.fire({
-        icon: 'success',
-        title: "{{ session('success') }}"
     });
 </script>
 @endif
