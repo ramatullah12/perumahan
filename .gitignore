@@ -15,7 +15,7 @@
 /node_modules
 
 # Baris di bawah ini dihapus agar CSS/JS terunggah ke Vercel
-# /public/build 
+# /public/build sjcks
 
 /public/hot
 /public/storage
