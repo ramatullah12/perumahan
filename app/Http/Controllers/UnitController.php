@@ -4,16 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Unit;
 use App\Models\Project;
-use App\Models\Tipe; // Pastikan menggunakan T kapital sesuai standar Laravel
+use App\Models\Tipe; 
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class UnitController extends Controller
 {
     /**
-     * SINKRONISASI STOK: Memperbarui statistik di tabel projects secara riil.
+     * SINKRONISASI STOK: Memperbarui statistik di tabel projects secara otomatis.
      */
     private function syncProjectStock($projectId)
     {
@@ -36,7 +37,39 @@ class UnitController extends Controller
     }
 
     /**
-     * ADMIN - DAFTAR UNIT
+     * AJAX: Mengambil tipe rumah berdasarkan project_id.
+     * Fungsi ini yang akan menghilangkan pesan "Gagal memuat tipe".
+     */
+    public function getTipeByProject($projectId)
+    {
+        try {
+            // Mengambil tipe yang hanya dimiliki oleh proyek tersebut
+            $tipes = Tipe::where('project_id', $projectId)
+                         ->orderBy('nama_tipe')
+                         ->get(['id', 'nama_tipe', 'harga']); 
+
+            return response()->json($tipes);
+        } catch (\Exception $e) {
+            Log::error("AJAX Error Get Tipe: " . $e->getMessage());
+            return response()->json(['error' => 'Gagal mengambil data'], 500);
+        }
+    }
+
+    /**
+     * CUSTOMER: Menampilkan daftar proyek bagi pembeli (Solusi Error 500).
+     */
+    public function jelajahiProyek()
+    {
+        // Mengambil semua proyek beserta unit yang tersedia
+        $projects = Project::withCount(['units' => function($query) {
+            $query->where('status', 'Tersedia');
+        }])->orderBy('nama_proyek')->get();
+
+        return view('project.customer.index', compact('projects'));
+    }
+
+    /**
+     * ADMIN: Daftar Unit dengan filter.
      */
     public function index(Request $request)
     {
@@ -56,20 +89,23 @@ class UnitController extends Controller
     }
 
     /**
-     * ADMIN - HALAMAN EDIT UNIT
-     * Menambahkan fungsi yang sebelumnya menyebabkan error "Undefined method edit"
+     * ADMIN: Halaman tambah unit.
      */
-    public function edit(Unit $unit)
+    public function create(Request $request)
     {
         $projects = Project::orderBy('nama_proyek')->get();
-        // Mengambil tipe yang hanya tersedia untuk proyek unit tersebut
-        $tipes = Tipe::where('project_id', $unit->project_id)->get();
+        $selectedProjectId = $request->query('project_id') ?? old('project_id');
+        
+        $tipes = $selectedProjectId 
+            ? Tipe::where('project_id', $selectedProjectId)->orderBy('nama_tipe')->get() 
+            : collect();
 
-        return view('unit.admin.edit', compact('unit', 'projects', 'tipes'));
+        $unit = new Unit(); 
+        return view('unit.admin.create', compact('projects', 'unit', 'tipes', 'selectedProjectId'));
     }
 
     /**
-     * ADMIN - SIMPAN UNIT BARU
+     * ADMIN: Proses simpan unit.
      */
     public function store(Request $request)
     {
@@ -77,20 +113,27 @@ class UnitController extends Controller
             'project_id' => 'required|exists:projects,id',
             'tipe_id'    => 'required|exists:tipes,id',
             'block'      => 'required|string|max:10',
+            'no_unit'    => 'required|string|max:10',
             'harga'      => 'required|numeric|min:0', 
-            'no_unit'    => [ 
-                'required', 'string', 'max:10',
-                Rule::unique('units')->where(fn($q) => 
-                    $q->where('project_id', $request->project_id)->where('block', $request->block)
-                ),
-            ],
-            'status'     => 'required|in:Tersedia,Dibooking,Terjual'
-        ], [
-            'no_unit.unique' => 'Nomor unit ini sudah ada di blok dan proyek yang sama.'
+            'status'     => 'required|in:Tersedia,Dibooking,Terjual',
+            'gambar'     => 'nullable|image|mimes:jpg,jpeg,png|max:2048'
         ]);
+
+        $exists = Unit::where('project_id', $request->project_id)
+                      ->where('block', $request->block)
+                      ->where('no_unit', $request->no_unit)
+                      ->exists();
+
+        if ($exists) {
+            return redirect()->back()->withInput()->with('error', 'Nomor Unit pada Blok ini sudah ada di proyek tersebut.');
+        }
 
         try {
             DB::transaction(function () use ($validated, $request) {
+                if ($request->hasFile('gambar')) {
+                    $validated['gambar'] = $request->file('gambar')->store('units', 'public');
+                }
+
                 $validated['progres'] = 0; 
                 Unit::create($validated);
                 $this->syncProjectStock($request->project_id);
@@ -99,44 +142,55 @@ class UnitController extends Controller
             return redirect()->route('admin.unit.index')->with('success', 'Unit berhasil ditambahkan!');
         } catch (\Exception $e) {
             Log::error("Error Store Unit: " . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', 'Gagal menambah unit.');
+            return redirect()->back()->withInput()->with('error', 'Gagal menambah unit: ' . $e->getMessage());
         }
     }
 
     /**
-     * ADMIN - UPDATE DATA UNIT
+     * ADMIN: Halaman edit unit.
+     */
+    public function edit(Unit $unit)
+    {
+        $projects = Project::orderBy('nama_proyek')->get();
+        $tipes = Tipe::where('project_id', $unit->project_id)->orderBy('nama_tipe')->get();
+        return view('unit.admin.edit', compact('unit', 'projects', 'tipes'));
+    }
+
+    /**
+     * ADMIN: Proses update unit.
      */
     public function update(Request $request, Unit $unit)
     {
-        $oldProjectId = $unit->project_id; 
+        $oldProjectId = $unit->project_id;
 
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
             'tipe_id'    => 'required|exists:tipes,id',
             'block'      => 'required|string|max:10',
+            'no_unit'    => 'required|string|max:10',
             'harga'      => 'required|numeric|min:0', 
-            'progres'    => 'required|integer|min:0|max:100', 
-            'no_unit'    => [ 
-                'required', 'string', 'max:10',
-                Rule::unique('units')->ignore($unit->id)->where(fn($q) => 
-                    $q->where('project_id', $request->project_id)->where('block', $request->block)
-                ),
-            ],
-            'status'     => 'required|in:Tersedia,Dibooking,Terjual'
+            'progres'    => 'required|integer|min:0|max:100',
+            'status'     => 'required|in:Tersedia,Dibooking,Terjual',
+            'gambar'     => 'nullable|image|mimes:jpg,jpeg,png|max:2048'
         ]);
 
         try {
-            DB::transaction(function () use ($validated, $unit, $request, $oldProjectId) {
+            DB::transaction(function () use ($validated, $request, $unit, $oldProjectId) {
+                if ($request->hasFile('gambar')) {
+                    if ($unit->gambar) {
+                        Storage::disk('public')->delete($unit->gambar);
+                    }
+                    $validated['gambar'] = $request->file('gambar')->store('units', 'public');
+                }
+
                 $unit->update($validated);
-                
                 $this->syncProjectStock($request->project_id);
-                
-                if($oldProjectId != $request->project_id) {
+                if ($oldProjectId != $request->project_id) {
                     $this->syncProjectStock($oldProjectId);
                 }
             });
 
-            return redirect()->route('admin.unit.index')->with('success', 'Data unit diperbarui!');
+            return redirect()->route('admin.unit.index')->with('success', 'Unit berhasil diperbarui!');
         } catch (\Exception $e) {
             Log::error("Error Update Unit: " . $e->getMessage());
             return redirect()->back()->withInput()->with('error', 'Gagal memperbarui unit.');
@@ -144,22 +198,19 @@ class UnitController extends Controller
     }
 
     /**
-     * ADMIN - HAPUS UNIT
+     * ADMIN: Hapus unit.
      */
     public function destroy(Unit $unit)
     {
         $projectId = $unit->project_id;
-
-        if ($unit->status !== 'Tersedia') {
-            return back()->with('error', 'Unit tidak bisa dihapus karena sudah berstatus ' . $unit->status);
-        }
-
         try {
             DB::transaction(function () use ($unit, $projectId) {
+                if ($unit->gambar) {
+                    Storage::disk('public')->delete($unit->gambar);
+                }
                 $unit->delete();
                 $this->syncProjectStock($projectId);
             });
-
             return back()->with('success', 'Unit berhasil dihapus!');
         } catch (\Exception $e) {
             return back()->with('error', 'Gagal menghapus unit.');
@@ -167,24 +218,17 @@ class UnitController extends Controller
     }
 
     /**
-     * AJAX - AMBIL TIPE BERDASARKAN PROYEK
-     * Nama fungsi ini disesuaikan agar cocok dengan script AJAX di Blade Anda
+     * ADMIN: Update status cepat (AJAX/Patch).
      */
-    public function getTipeByProject($projectId)
+    public function updateStatus(Request $request, Unit $unit)
     {
-        $tipes = Tipe::where('project_id', $projectId)
-            ->orderBy('nama_tipe')
-            ->get(['id', 'nama_tipe']);
-            
-        return response()->json($tipes);
-    }
+        $validated = $request->validate([
+            'status' => 'required|in:Tersedia,Dibooking,Terjual'
+        ]);
 
-    /**
-     * CUSTOMER - JELAJAHI PROYEK
-     */
-    public function jelajahiProyek()
-    {
-        $projects = Project::latest()->get();
-        return view('project.customer.index', compact('projects'));
+        $unit->update($validated);
+        $this->syncProjectStock($unit->project_id);
+
+        return response()->json(['success' => true]);
     }
 }

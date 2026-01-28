@@ -19,7 +19,8 @@ class Unit extends Model
         'no_unit', 
         'status', // 'Tersedia', 'Dibooking', 'Terjual'
         'progres', 
-        'harga', 
+        'harga',
+        'gambar', // Pastikan kolom gambar ada di fillable jika ingin upload foto
     ];
 
     /**
@@ -31,7 +32,7 @@ class Unit extends Model
     }
 
     /**
-     * Relasi ke Tipe (PENTING: Agar nama tipe rumah muncul di dropdown)
+     * Relasi ke Tipe Rumah
      */
     public function tipe(): BelongsTo
     {
@@ -39,7 +40,7 @@ class Unit extends Model
     }
 
     /**
-     * Relasi progres_history (Solusi Error 500 di ProgresController)
+     * Relasi ke Riwayat Progres Pembangunan
      */
     public function progres_history(): HasMany 
     {
@@ -47,15 +48,7 @@ class Unit extends Model
     }
 
     /**
-     * Alias Relasi progres
-     */
-    public function progres(): HasMany 
-    {
-        return $this->hasMany(Progres::class, 'unit_id')->latest();
-    }
-
-    /**
-     * Mengambil progres pembangunan terakhir saja
+     * Mengambil data progres pembangunan terakhir saja
      */
     public function latestProgres(): HasOne
     {
@@ -63,7 +56,7 @@ class Unit extends Model
     }
 
     /**
-     * Relasi ke Booking
+     * Relasi ke Data Booking
      */
     public function booking(): HasOne
     {
@@ -71,15 +64,15 @@ class Unit extends Model
     }
 
     /**
-     * Accessor untuk nama unit (Contoh: Blok A No. 01)
+     * ACCESSOR: Nama Unit Lengkap (Blok A No. 01)
      */
     public function getNamaUnitAttribute(): string
     {
-        return "Blok {$this->block} No. {$this->no_unit}";
+        return "Blok " . strtoupper($this->block) . " No. " . $this->no_unit;
     }
 
     /**
-     * Accessor untuk Tipe dan Harga (Memudahkan tampilan di Dropdown AJAX)
+     * ACCESSOR: Detail Lengkap untuk tampilan (Blok A No. 01 - Tipe 36 - Rp 500.000.000)
      */
     public function getDetailUnitAttribute(): string
     {
