@@ -9,19 +9,24 @@
         .glass-nav:hover { background: rgba(255, 255, 255, 0.25); transform: translateX(5px); }
         .card-premium { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid #f1f5f9; background: #ffffff; }
         .card-premium:hover { transform: translateY(-12px); box-shadow: 0 40px 80px -15px rgba(0, 0, 0, 0.1); border-color: #3b82f6; }
-        .progress-bar-mini { height: 4px; border-radius: 10px; background: #e2e8f0; overflow: hidden; position: relative; }
+        .progress-bar-mini { height: 6px; border-radius: 10px; background: #e2e8f0; overflow: hidden; position: relative; }
         .progress-fill { position: absolute; left: 0; top: 0; height: 100%; transition: width 1s ease-in-out; }
         .animate-float { animation: float 5s ease-in-out infinite; }
         @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
+        
+        /* Custom scrollbar untuk tabel */
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 
     <div class="min-h-screen pb-24">
         {{-- Hero Header --}}
         <div class="relative h-[650px] w-full overflow-hidden bg-slate-950">
-            <img src="{{ asset('storage/' . $project->gambar) }}" 
+            {{-- PERBAIKAN: Path Gambar Cloudinary --}}
+            <img src="{{ $project->gambar }}" 
                  class="w-full h-full object-cover opacity-60 scale-105 transition-transform duration-[15s] hover:scale-100" 
                  alt="{{ $project->nama_proyek }}"
-                 onerror="this.src='{{ asset('images/rumah.jpg') }}'">
+                 onerror="this.onerror=null;this.src='https://placehold.co/1200x800?text=Gambar+Proyek';">
             
             <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/40 to-transparent"></div>
             
@@ -35,7 +40,7 @@
                             <span class="bg-blue-600 h-10 w-1 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.8)]"></span>
                             <span class="text-blue-400 font-black text-xs uppercase tracking-[0.4em]">Masterpiece Collection</span>
                         </div>
-                        <h1 class="text-6xl lg:text-8xl font-black text-white leading-none tracking-tighter hero-title mb-4">
+                        <h1 class="text-6xl lg:text-8xl font-black text-white leading-none tracking-tighter hero-title mb-4 uppercase">
                             {{ $project->nama_proyek }}
                         </h1>
                         <div class="flex flex-wrap items-center gap-6">
@@ -43,8 +48,8 @@
                                 <i class="bi bi-geo-alt-fill me-3 text-blue-500 text-2xl"></i> {{ $project->lokasi }}
                             </p>
                             <span class="h-6 w-[1px] bg-white/20 hidden md:block"></span>
-                            <p class="text-white/80 flex items-center text-xl font-medium tracking-wide italic">
-                                <i class="bi bi-tag-fill me-3 text-emerald-500 text-2xl"></i> Investasi Masa Depan
+                            <p class="text-white/80 flex items-center text-xl font-medium tracking-wide italic uppercase tracking-widest text-sm opacity-70">
+                                <i class="bi bi-award-fill me-3 text-emerald-500 text-2xl"></i> High Value Asset
                             </p>
                         </div>
                     </div>
@@ -64,40 +69,38 @@
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div class="text-center py-10 rounded-[3rem] bg-slate-50 border border-slate-100 group transition-all hover:bg-slate-900">
                                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 group-hover:text-slate-500">Inventory</p>
-                                <p class="text-4xl font-black text-slate-800 group-hover:text-white tracking-tighter">{{ $project->total_unit }} <span class="text-xs opacity-50">Unit</span></p>
+                                <p class="text-4xl font-black text-slate-800 group-hover:text-white tracking-tighter">{{ $project->units->count() }} <span class="text-xs opacity-50 uppercase">Unit</span></p>
                             </div>
                             <div class="text-center py-10 rounded-[3rem] bg-emerald-50 border border-emerald-100 group transition-all hover:bg-emerald-600">
                                 <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 group-hover:text-emerald-100">Ready</p>
-                                <p class="text-4xl font-black text-slate-800 group-hover:text-white tracking-tighter">{{ $project->tersedia }}</p>
+                                <p class="text-4xl font-black text-slate-800 group-hover:text-white tracking-tighter">{{ $project->units->where('status', 'Tersedia')->count() }}</p>
                             </div>
                             <div class="text-center py-10 rounded-[3rem] bg-amber-50 border border-amber-100 group transition-all hover:bg-amber-500">
                                 <p class="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3 group-hover:text-amber-100">Reserved</p>
-                                <p class="text-4xl font-black text-slate-800 group-hover:text-white tracking-tighter">{{ $project->booked }}</p>
+                                <p class="text-4xl font-black text-slate-800 group-hover:text-white tracking-tighter">{{ $project->units->where('status', 'Dibooking')->count() }}</p>
                             </div>
                             <div class="text-center py-10 rounded-[3rem] bg-slate-100 border border-slate-200 group transition-all hover:bg-red-600">
                                 <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 group-hover:text-red-100">Sold Out</p>
-                                <p class="text-4xl font-black text-slate-800 group-hover:text-white tracking-tighter">{{ $project->terjual }}</p>
+                                <p class="text-4xl font-black text-slate-800 group-hover:text-white tracking-tighter">{{ $project->units->where('status', 'Terjual')->count() }}</p>
                             </div>
                         </div>
                     </div>
 
                     {{-- Katalog Tipe --}}
                     <div class="space-y-10">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-5">
-                                <div class="w-2 h-12 bg-blue-600 rounded-full"></div>
-                                <h2 class="text-4xl font-black text-slate-900 tracking-tight">Katalog Pilihan</h2>
-                            </div>
+                        <div class="flex items-center gap-5">
+                            <div class="w-2 h-12 bg-blue-600 rounded-full"></div>
+                            <h2 class="text-4xl font-black text-slate-900 tracking-tight">Katalog Pilihan</h2>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-                            @foreach($project->tipes as $tipe)
+                            @forelse($project->tipes as $tipe)
                             <div class="rounded-[3rem] overflow-hidden card-premium group">
                                 <div class="p-10">
                                     <div class="flex justify-between items-start mb-10">
                                         <div>
-                                            <span class="px-4 py-1.5 bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest rounded-full border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-all">Best Seller</span>
-                                            <h3 class="text-3xl font-black text-slate-800 mt-4 tracking-tighter">Tipe {{ $tipe->nama_tipe }}</h3>
+                                            <span class="px-4 py-1.5 bg-blue-50 text-blue-600 text-[9px] font-black uppercase tracking-widest rounded-full border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-all">Available Unit</span>
+                                            <h3 class="text-3xl font-black text-slate-800 mt-4 tracking-tighter uppercase leading-none">Tipe {{ $tipe->nama_tipe }}</h3>
                                         </div>
                                         <div class="bg-slate-100 p-4 rounded-[2rem] text-slate-800 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-inner">
                                             <i class="bi bi-house-heart-fill text-2xl"></i>
@@ -105,30 +108,47 @@
                                     </div>
                                     
                                     <div class="grid grid-cols-2 gap-6 mb-10">
-                                        @php
-                                            $specs = [
-                                                ['icon' => 'bi-aspect-ratio', 'label' => 'Tanah', 'val' => $tipe->luas_tanah . ' m²'],
-                                                ['icon' => 'bi-building', 'label' => 'Bangunan', 'val' => $tipe->luas_bangunan . ' m²'],
-                                                ['icon' => 'bi-door-open', 'label' => 'K. Tidur', 'val' => ($tipe->kamar_tidur ?? '2') . ' Unit'],
-                                                ['icon' => 'bi-droplet', 'label' => 'K. Mandi', 'val' => ($tipe->kamar_mandi ?? '1') . ' Unit']
-                                            ];
-                                        @endphp
-                                        @foreach($specs as $spec)
                                         <div class="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-4 group-hover:bg-white transition-colors">
                                             <div class="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
-                                                <i class="bi {{ $spec['icon'] }}"></i>
+                                                <i class="bi bi-aspect-ratio"></i>
                                             </div>
                                             <div>
-                                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-tighter">{{ $spec['label'] }}</p>
-                                                <p class="text-sm font-bold text-slate-800">{{ $spec['val'] }}</p>
+                                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-tighter">Luas Tanah</p>
+                                                <p class="text-sm font-bold text-slate-800">{{ $tipe->luas_tanah }} m²</p>
                                             </div>
                                         </div>
-                                        @endforeach
+                                        <div class="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-4 group-hover:bg-white transition-colors">
+                                            <div class="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
+                                                <i class="bi bi-building"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-tighter">Bangunan</p>
+                                                <p class="text-sm font-bold text-slate-800">{{ $tipe->luas_bangunan }} m²</p>
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-4 group-hover:bg-white transition-colors">
+                                            <div class="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
+                                                <i class="bi bi-door-open"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-tighter">K. Tidur</p>
+                                                <p class="text-sm font-bold text-slate-800">{{ $tipe->kamar_tidur ?? '2' }} Unit</p>
+                                            </div>
+                                        </div>
+                                        <div class="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-4 group-hover:bg-white transition-colors">
+                                            <div class="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600">
+                                                <i class="bi bi-droplet"></i>
+                                            </div>
+                                            <div>
+                                                <p class="text-[9px] text-slate-400 font-black uppercase tracking-tighter">K. Mandi</p>
+                                                <p class="text-sm font-bold text-slate-800">{{ $tipe->kamar_mandi ?? '1' }} Unit</p>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="pt-8 border-t border-slate-100 flex justify-between items-center">
                                         <div>
-                                            <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Mulai Dari</p>
+                                            <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Market Price</p>
                                             <p class="text-3xl font-black text-blue-600 tracking-tighter">Rp {{ number_format($tipe->harga, 0, ',', '.') }}</p>
                                         </div>
                                         <a href="{{ route('login') }}" class="h-14 w-14 bg-slate-900 text-white rounded-[1.5rem] flex items-center justify-center hover:bg-blue-600 hover:rotate-12 transition-all shadow-xl shadow-slate-200">
@@ -137,7 +157,9 @@
                                     </div>
                                 </div>
                             </div>
-                            @endforeach
+                            @empty
+                            <p class="text-slate-400 italic font-medium">Katalog tipe belum tersedia untuk proyek ini.</p>
+                            @endforelse
                         </div>
                     </div>
 
@@ -146,29 +168,29 @@
                         <div class="p-10 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
                             <div>
                                 <h2 class="text-2xl font-black text-slate-800 tracking-tight">Ketersediaan Unit</h2>
-                                <p class="text-slate-400 text-xs font-medium mt-1 italic">Pantau status & progres pembangunan secara live.</p>
+                                <p class="text-slate-400 text-xs font-medium mt-1 italic uppercase tracking-widest">Real-time Stock Monitor</p>
                             </div>
                             <span class="hidden md:block bg-blue-100 text-blue-600 text-[10px] font-black px-5 py-2 rounded-full uppercase tracking-widest border border-blue-200 shadow-sm animate-pulse">Live Tracking</span>
                         </div>
-                        <div class="overflow-x-auto p-8">
+                        <div class="overflow-x-auto p-8 custom-scrollbar">
                             <table class="w-full text-left border-separate border-spacing-y-4">
                                 <thead>
                                     <tr class="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
-                                        <th class="px-8 pb-2 text-center">Blok</th>
+                                        <th class="px-8 pb-2 text-center">Blok/No</th>
                                         <th class="px-8 pb-2">Detail Tipe</th>
-                                        <th class="px-8 pb-2">Fase Progres</th>
+                                        <th class="px-8 pb-2">Progres</th>
                                         <th class="px-8 pb-2">Status</th>
-                                        <th class="px-8 pb-2 text-right">Aksi</th>
+                                        <th class="px-8 pb-2 text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($project->units as $unit)
+                                    @forelse($project->units as $unit)
                                     <tr class="hover:bg-blue-50/30 transition-all bg-white shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] rounded-3xl group">
                                         <td class="px-8 py-6 rounded-l-[2rem] text-center border-y border-l border-slate-100">
-                                            <span class="block text-xl font-black text-slate-800 group-hover:text-blue-600 transition-colors">{{ $unit->block }}-{{ $unit->no_unit }}</span>
+                                            <span class="block text-xl font-black text-slate-800 group-hover:text-blue-600 transition-colors uppercase">{{ $unit->block }}-{{ $unit->no_unit }}</span>
                                         </td>
                                         <td class="px-8 py-6 border-y border-slate-100">
-                                            <p class="text-slate-700 font-black text-sm uppercase tracking-tighter">{{ $unit->tipe->nama_tipe ?? 'Signature' }}</p>
+                                            <p class="text-slate-700 font-black text-sm uppercase tracking-tighter leading-none">{{ $unit->tipe->nama_tipe ?? 'Signature' }}</p>
                                         </td>
                                         <td class="px-8 py-6 border-y border-slate-100 min-w-[150px]">
                                             <div class="flex flex-col gap-2">
@@ -198,11 +220,15 @@
                                             @if($unit->status == 'Tersedia')
                                                 <a href="{{ route('login') }}" class="inline-flex items-center px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-600 transition-all shadow-lg hover:-translate-y-1">Book Now</a>
                                             @else
-                                                <span class="text-slate-300 font-black text-[10px] uppercase italic tracking-widest">Reserved</span>
+                                                <span class="text-slate-300 font-black text-[10px] uppercase italic tracking-widest">Locked</span>
                                             @endif
                                         </td>
                                     </tr>
-                                    @endforeach
+                                    @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-20 text-slate-400 italic">Data unit belum tersedia.</td>
+                                    </tr>
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
@@ -231,7 +257,7 @@
                                     </div>
                                     <div>
                                         <p class="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 group-hover:text-emerald-100 transition-colors">Konsultasi Live</p>
-                                        <p class="text-xl font-black tracking-tight group-hover:text-white transition-colors">Hubungi Sales</p>
+                                        <p class="text-xl font-black tracking-tight group-hover:text-white transition-colors uppercase">Hubungi Sales</p>
                                     </div>
                                 </a>
                             </div>
@@ -248,18 +274,20 @@
                     </div>
 
                     {{-- Small Map/Location Card Preview --}}
-                    <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 group cursor-pointer overflow-hidden relative">
-                        <div class="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-5 transition-opacity"></div>
-                        <div class="flex items-center gap-5 relative z-10">
-                            <div class="h-14 w-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                                <i class="bi bi-geo-fill"></i>
-                            </div>
-                            <div>
-                                <h4 class="font-black text-slate-800 tracking-tight">Cek Lokasi</h4>
-                                <p class="text-xs text-slate-400 font-bold uppercase tracking-tighter">Buka di Google Maps <i class="bi bi-arrow-up-right ms-1 text-[10px]"></i></p>
+                    <a href="https://www.google.com/maps/search/{{ urlencode($project->lokasi) }}" target="_blank" class="block">
+                        <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 group cursor-pointer overflow-hidden relative">
+                            <div class="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-5 transition-opacity"></div>
+                            <div class="flex items-center gap-5 relative z-10">
+                                <div class="h-14 w-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                                    <i class="bi bi-geo-fill"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-black text-slate-800 tracking-tight uppercase">Cek Lokasi</h4>
+                                    <p class="text-xs text-slate-400 font-bold uppercase tracking-tighter">Buka di Google Maps <i class="bi bi-arrow-up-right ms-1 text-[10px]"></i></p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
 
             </div>

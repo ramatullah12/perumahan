@@ -24,9 +24,11 @@
                 {{-- Foto Proyek --}}
                 <div class="w-full md:w-80 h-52 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100 border border-gray-100 shadow-inner relative">
                     @if($project->gambar)
-                        <img src="{{ asset('storage/' . $project->gambar) }}" 
+                        {{-- PERBAIKAN: Langsung panggil variabel gambar karena sudah berisi URL Cloudinary --}}
+                        <img src="{{ $project->gambar }}" 
                              class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                             alt="{{ $project->nama_proyek }}">
+                             alt="{{ $project->nama_proyek }}"
+                             onerror="this.onerror=null;this.src='https://placehold.co/600x400?text=Gambar+Rusak';">
                     @else
                         <div class="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-50">
                             <i class="fas fa-house-damage text-4xl mb-2"></i>
@@ -78,7 +80,7 @@
                         "{{ $project->deskripsi ?? 'Proyek ini belum memiliki deskripsi detail.' }}"
                     </p>
 
-                    {{-- PERBAIKAN: Statistik Unit (Menggunakan variabel otomatis dari Controller) --}}
+                    {{-- Statistik Unit --}}
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div class="bg-white p-3 rounded-2xl text-center border border-gray-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-gray-400 mb-1">Target Kapasitas</p>
@@ -86,17 +88,14 @@
                         </div>
                         <div class="bg-green-50/50 p-3 rounded-2xl text-center border border-green-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-green-600 mb-1">Tersedia Riil</p>
-                            {{-- Mengambil data riil dari unit dengan status 'Tersedia' --}}
                             <p class="text-xl font-black text-green-700">{{ number_format($project->tersedia) }}</p>
                         </div>
                         <div class="bg-orange-50/50 p-3 rounded-2xl text-center border border-orange-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-orange-600 mb-1">Booked</p>
-                            {{-- Mengambil data riil dari unit dengan status 'Dibooking' --}}
                             <p class="text-xl font-black text-orange-700">{{ number_format($project->booked) }}</p>
                         </div>
                         <div class="bg-blue-50/50 p-3 rounded-2xl text-center border border-blue-100 shadow-sm">
                             <p class="text-[10px] uppercase tracking-tighter font-black text-blue-600 mb-1">Terjual</p>
-                            {{-- Mengambil data riil dari unit dengan status 'Terjual' --}}
                             <p class="text-xl font-black text-blue-700">{{ number_format($project->terjual) }}</p>
                         </div>
                     </div>

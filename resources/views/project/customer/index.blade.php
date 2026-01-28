@@ -11,7 +11,7 @@
             <p class="text-slate-500 text-lg font-medium">Jelajahi berbagai pilihan proyek perumahan eksklusif dengan fasilitas lengkap di lokasi strategis.</p>
         </div>
         
-        {{-- Search & Filter Bar (Visual Only) --}}
+        {{-- Search & Filter Bar --}}
         <div class="flex items-center gap-3 bg-white p-2 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100">
             <div class="relative">
                 <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
@@ -29,11 +29,13 @@
             <div class="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/40 overflow-hidden border border-slate-100 group transition-all duration-500 hover:-translate-y-4 flex flex-col relative">
                 
                 {{-- Image Container --}}
-                <div class="h-80 relative overflow-hidden">
+                <div class="h-80 relative overflow-hidden bg-slate-200">
                     @if($project->gambar)
-                        <img src="{{ asset('storage/' . $project->gambar) }}" 
+                        {{-- PERBAIKAN: Langsung panggil variabel gambar (Tanpa asset()) --}}
+                        <img src="{{ $project->gambar }}" 
                              class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-                             alt="{{ $project->nama_proyek }}">
+                             alt="{{ $project->nama_proyek }}"
+                             onerror="this.onerror=null;this.src='https://placehold.co/600x400?text=Gambar+Tidak+Tersedia';">
                     @else
                         <div class="flex items-center justify-center h-full bg-slate-100 text-slate-300 italic flex-col">
                             <i class="fas fa-house-user text-7xl mb-4 opacity-20"></i>
@@ -41,30 +43,29 @@
                         </div>
                     @endif
                     
-                    {{-- Status Badge (Glassmorphism) --}}
+                    {{-- Status Badge --}}
                     <div class="absolute top-6 left-6">
-                        <span class="bg-white/70 backdrop-blur-md text-slate-900 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/50 flex items-center">
-                            <span class="w-2 h-2 bg-emerald-500 rounded-full mr-3 animate-ping"></span>
+                        <span class="bg-white/80 backdrop-blur-md text-slate-900 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg border border-white/50 flex items-center">
+                            <span class="w-2 h-2 bg-emerald-500 rounded-full mr-3 {{ $project->tersedia > 0 ? 'animate-ping' : '' }}"></span>
                             {{ $project->status }}
                         </span>
                     </div>
 
-                    {{-- Label Kapasitas --}}
+                    @if($project->tersedia <= 5 && $project->tersedia > 0)
                     <div class="absolute bottom-6 left-6 right-6 flex justify-between items-end">
-                        <div class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/30">
-                            Unit Terbatas
+                        <div class="bg-red-600 text-white px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-500/30">
+                            Sisa {{ $project->tersedia }} Unit!
                         </div>
                     </div>
+                    @endif
                 </div>
 
                 {{-- Content Section --}}
                 <div class="p-8 flex-1 flex flex-col">
                     <div class="mb-6">
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-tight">
-                                {{ $project->nama_proyek }}
-                            </h3>
-                        </div>
+                        <h3 class="text-2xl font-black text-slate-900 group-hover:text-blue-600 transition-colors leading-tight mb-2">
+                            {{ $project->nama_proyek }}
+                        </h3>
                         <div class="flex items-center text-slate-400 font-bold text-sm">
                             <i class="fas fa-location-arrow text-blue-500 mr-2"></i>
                             {{ $project->lokasi }}
@@ -72,7 +73,7 @@
                     </div>
 
                     <p class="text-slate-500 text-sm leading-relaxed mb-8 line-clamp-3 font-medium">
-                        {{ $project->deskripsi ?? 'Nikmati kenyamanan tinggal di hunian yang dirancang khusus untuk gaya hidup modern dengan aksesibilitas tanpa batas.' }}
+                        {{ $project->deskripsi ?? 'Nikmati kenyamanan tinggal di hunian yang dirancang khusus untuk gaya hidup modern.' }}
                     </p>
 
                     {{-- Info Cards --}}
@@ -102,36 +103,21 @@
                         @else
                             <button disabled 
                                class="w-full bg-slate-100 text-slate-400 py-5 rounded-[1.5rem] font-black uppercase tracking-widest text-xs cursor-not-allowed flex items-center justify-center">
-                                <i class="fas fa-times-circle mr-3"></i> Unit Sudah Terjual Habis
+                                <i class="fas fa-times-circle mr-3"></i> Unit Terjual Habis
                             </button>
                         @endif
                     </div>
                 </div>
             </div>
         @empty
-            {{-- Empty State --}}
             <div class="col-span-full py-32 flex flex-col items-center justify-center text-center">
                 <div class="w-40 h-40 bg-white shadow-2xl shadow-slate-200 rounded-[3rem] flex items-center justify-center mb-10 text-blue-100">
                     <i class="fas fa-layer-group text-7xl"></i>
                 </div>
                 <h4 class="text-3xl font-black text-slate-800 tracking-tight">Belum Ada Proyek Baru</h4>
-                <p class="text-slate-400 mt-4 max-w-sm font-medium">Tim kami sedang menyiapkan proyek hunian terbaik. Silakan kembali dalam beberapa waktu.</p>
-                <button class="mt-8 text-blue-600 font-black uppercase tracking-widest text-xs hover:text-slate-900 transition-colors">
-                    <i class="fas fa-envelope mr-2"></i> Beritahu Saya Proyek Baru
-                </button>
+                <p class="text-slate-400 mt-4 max-w-sm font-medium">Silakan kembali dalam beberapa waktu.</p>
             </div>
         @endforelse
     </div>
 </div>
-
-<style>
-    @keyframes fade-in { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-fade-in { animation: fade-in 1s cubic-bezier(0.19, 1, 0.22, 1) forwards; }
-    .line-clamp-3 {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-</style>
 @endsection
