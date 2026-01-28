@@ -4,19 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http; // Wajib untuk upload ke API Cloudinary
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-// Library Cloudinary wajib ada untuk Vercel
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProjectController extends Controller
 {
     /**
-     * Menampilkan daftar proyek dengan statistik unit otomatis.
+     * Menampilkan daftar proyek.
      */
     public function index()
     {
-        // Menggunakan withCount agar data statistik dihitung langsung dari relasi Unit
         $projects = Project::withCount([
             'units as tersedia_count' => function ($query) {
                 $query->where('status', 'Tersedia');
@@ -38,11 +36,11 @@ class ProjectController extends Controller
     }
 
     /**
-     * SIMPAN PROYEK BARU (FIXED FOR VERCEL)
+     * SIMPAN PROYEK BARU (Menggunakan API HTTP Multipart)
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $input = $request->validate([
             'nama_proyek' => 'required|string|max:255',
             'lokasi'      => 'required|string',
             'total_unit'  => 'required|integer|min:1',
@@ -50,23 +48,49 @@ class ProjectController extends Controller
             'gambar'      => 'required|image|mimes:jpg,png,jpeg,webp|max:2048',
         ]);
 
-        // Upload ke Cloudinary menggunakan preset 'kedamark'
-        $uploadedFileUrl = Cloudinary::upload($request->file('gambar')->getRealPath(), [
-            'upload_preset' => 'kedamark',
-            'folder' => 'projects'
-        ])->getSecurePath();
+        if ($request->hasFile('gambar')) {
+            try {
+                $file = $request->file('gambar');
+                
+                // Request manual ke Cloudinary API (Tanpa SDK Library)
+                $response = Http::asMultipart()->post(
+                    'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
+                    [
+                        [
+                            'name'     => 'file',
+                            'contents' => fopen($file->getRealPath(), 'r'),
+                            'filename' => $file->getClientOriginalName(),
+                        ],
+                        [
+                            'name'     => 'upload_preset',
+                            'contents' => 'kedamark', // Preset Anda
+                        ],
+                        [
+                            'name'     => 'folder',
+                            'contents' => 'projects',
+                        ],
+                    ]
+                );
 
-        Project::create([
-            'nama_proyek' => $request->nama_proyek,
-            'lokasi'      => $request->lokasi,
-            'deskripsi'   => $request->deskripsi,
-            'total_unit'  => $request->total_unit, 
-            'gambar'      => $uploadedFileUrl, // Simpan URL HTTPS permanen
-            'status'      => 'Sedang Berjalan',
-            'tersedia'    => $request->total_unit, 
-            'booked'      => 0,
-            'terjual'     => 0,
-        ]);
+                $result = $response->json();
+
+                if (isset($result['secure_url'])) {
+                    $input['gambar'] = $result['secure_url'];
+                } else {
+                    return back()->withErrors(['gambar' => 'Cloudinary Upload Error: ' . ($result['error']['message'] ?? 'Unknown error')]);
+                }
+            } catch (\Exception $e) {
+                return back()->withErrors(['gambar' => 'Cloudinary Connection Error: ' . $e->getMessage()]);
+            }
+        }
+
+        // Mapping data tambahan
+        $input['status']   = 'Sedang Berjalan';
+        $input['tersedia'] = $request->total_unit;
+        $input['booked']   = 0;
+        $input['terjual']  = 0;
+
+        Project::create($input);
 
         return redirect()->route('admin.project.index')->with('success', 'Proyek Berhasil Dipublikasikan!');
     }
@@ -77,7 +101,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * UPDATE PROYEK (FIXED FOR VERCEL)
+     * UPDATE PROYEK (Menggunakan API HTTP Multipart)
      */
     public function update(Request $request, Project $project)
     {
@@ -91,19 +115,40 @@ class ProjectController extends Controller
 
         $data = $request->only(['nama_proyek', 'lokasi', 'total_unit', 'deskripsi']);
 
-        // Sinkronisasi Stok
+        // Sinkronisasi Stok jika total unit berubah
         if ($request->total_unit != $project->total_unit) {
             $data['tersedia'] = $request->total_unit - ($project->booked + $project->terjual);
         }
 
         if ($request->hasFile('gambar')) {
-            // Upload baru ke Cloudinary
-            $uploadedFileUrl = Cloudinary::upload($request->file('gambar')->getRealPath(), [
-                'upload_preset' => 'kedamark',
-                'folder' => 'projects'
-            ])->getSecurePath();
-            
-            $data['gambar'] = $uploadedFileUrl;
+            try {
+                $file = $request->file('gambar');
+                $response = Http::asMultipart()->post(
+                    'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
+                    [
+                        [
+                            'name'     => 'file',
+                            'contents' => fopen($file->getRealPath(), 'r'),
+                            'filename' => $file->getClientOriginalName(),
+                        ],
+                        [
+                            'name'     => 'upload_preset',
+                            'contents' => 'kedamark',
+                        ],
+                        [
+                            'name'     => 'folder',
+                            'contents' => 'projects',
+                        ],
+                    ]
+                );
+
+                $result = $response->json();
+                if (isset($result['secure_url'])) {
+                    $data['gambar'] = $result['secure_url'];
+                }
+            } catch (\Exception $e) {
+                return back()->withErrors(['gambar' => 'Cloudinary Error: ' . $e->getMessage()]);
+            }
         }
 
         $project->update($data);
@@ -113,14 +158,12 @@ class ProjectController extends Controller
 
     public function destroy(Project $project)
     {
-        // Proteksi: Mencegah penghapusan jika sudah ada unit yang terjual secara riil
         $sudahTerjual = $project->units()->where('status', 'Terjual')->count();
 
         if ($sudahTerjual > 0) {
             return redirect()->back()->with('error', 'Proyek tidak bisa dihapus karena sudah ada unit yang terjual!');
         }
 
-        // Untuk Cloudinary, file tidak perlu dihapus manual dari storage lokal
         $project->delete();
 
         return redirect()->route('admin.project.index')->with('success', 'Proyek berhasil dihapus!');

@@ -8,9 +8,8 @@ use App\Models\Booking;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http; // Gunakan ini untuk upload ke API
 use Exception;
-// Wajib gunakan Cloudinary untuk Vercel
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ProgresController extends Controller
 {
@@ -67,7 +66,7 @@ class ProgresController extends Controller
     }
 
     /**
-     * ADMIN - SIMPAN UPDATE PROGRES (FIXED FOR VERCEL)
+     * ADMIN - SIMPAN UPDATE PROGRES (Gaya HTTP Multipart untuk Vercel)
      */
     public function store(Request $request)
     {
@@ -80,16 +79,39 @@ class ProgresController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($request) {
+            return DB::transaction(function () use ($request) {
                 $fotoUrl = null;
 
                 if ($request->hasFile('foto')) {
-                    // Upload ke Cloudinary dengan preset 'kedamark'
-                    $uploadedFile = Cloudinary::upload($request->file('foto')->getRealPath(), [
-                        'upload_preset' => 'kedamark',
-                        'folder' => 'progres_pembangunan'
-                    ]);
-                    $fotoUrl = $uploadedFile->getSecurePath();
+                    $file = $request->file('foto');
+                    
+                    // Request langsung ke API Cloudinary
+                    $response = Http::asMultipart()->post(
+                        'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
+                        [
+                            [
+                                'name'     => 'file',
+                                'contents' => fopen($file->getRealPath(), 'r'),
+                                'filename' => $file->getClientOriginalName(),
+                            ],
+                            [
+                                'name'     => 'upload_preset',
+                                'contents' => 'kedamark',
+                            ],
+                            [
+                                'name'     => 'folder',
+                                'contents' => 'progres_pembangunan'
+                            ],
+                        ]
+                    );
+
+                    $result = $response->json();
+                    
+                    if (isset($result['secure_url'])) {
+                        $fotoUrl = $result['secure_url'];
+                    } else {
+                        throw new Exception('Upload gagal: ' . ($result['error']['message'] ?? 'Unknown error'));
+                    }
                 }
 
                 // 1. Simpan ke tabel 'progres'
@@ -98,18 +120,18 @@ class ProgresController extends Controller
                     'persentase' => $request->persentase,
                     'tahap'      => $request->tahap,
                     'keterangan' => $request->keterangan,
-                    'foto'       => $fotoUrl, // Menyimpan URL HTTPS Cloudinary
+                    'foto'       => $fotoUrl,
                 ]);
 
                 // 2. Sinkronisasi ke tabel 'units'
                 Unit::where('id', $request->unit_id)->update([
                     'progres' => $request->persentase
                 ]);
-            });
 
-            return redirect()->route('admin.progres.index')->with('success', 'Progres pembangunan berhasil diperbarui!');
+                return redirect()->route('admin.progres.index')->with('success', 'Progres pembangunan berhasil diperbarui!');
+            });
         } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Gagal update progres: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Gagal update progres: ' . $e->getMessage());
         }
     }
 
@@ -123,7 +145,7 @@ class ProgresController extends Controller
     }
 
     /**
-     * ADMIN - PROSES UPDATE DATA (FIXED FOR VERCEL)
+     * ADMIN - PROSES UPDATE DATA (Gaya HTTP Multipart untuk Vercel)
      */
     public function update(Request $request, $id)
     {
@@ -135,21 +157,40 @@ class ProgresController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($request, $id) {
+            return DB::transaction(function () use ($request, $id) {
                 $unit = Unit::findOrFail($id);
+                // Default ambil foto lama
                 $fotoUrl = $unit->latestProgres->foto ?? null;
 
                 if ($request->hasFile('foto')) {
-                    // Upload baru ke Cloudinary
-                    $uploadedFile = Cloudinary::upload($request->file('foto')->getRealPath(), [
-                        'upload_preset' => 'kedamark',
-                        'folder' => 'progres_pembangunan'
-                    ]);
-                    $fotoUrl = $uploadedFile->getSecurePath();
-                    // Catatan: Cloudinary menangani penghapusan manual via API jika perlu, 
-                    // namun untuk history progres, foto lama biasanya tetap disimpan.
+                    $file = $request->file('foto');
+                    
+                    $response = Http::asMultipart()->post(
+                        'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
+                        [
+                            [
+                                'name'     => 'file',
+                                'contents' => fopen($file->getRealPath(), 'r'),
+                                'filename' => $file->getClientOriginalName(),
+                            ],
+                            [
+                                'name'     => 'upload_preset',
+                                'contents' => 'kedamark',
+                            ],
+                            [
+                                'name'     => 'folder',
+                                'contents' => 'progres_pembangunan'
+                            ],
+                        ]
+                    );
+
+                    $result = $response->json();
+                    if (isset($result['secure_url'])) {
+                        $fotoUrl = $result['secure_url'];
+                    }
                 }
 
+                // Buat record progres baru (setiap update progres biasanya menambah record history)
                 Progres::create([
                     'unit_id'    => $id,
                     'persentase' => $request->persentase,
@@ -158,14 +199,15 @@ class ProgresController extends Controller
                     'foto'       => $fotoUrl,
                 ]);
 
+                // Update data progres di unit utama
                 $unit->update([
                     'progres' => $request->persentase
                 ]);
-            });
 
-            return redirect()->route('admin.progres.index')->with('success', 'Perubahan berhasil disimpan!');
+                return redirect()->route('admin.progres.index')->with('success', 'Perubahan berhasil disimpan!');
+            });
         } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Gagal update: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Gagal update: ' . $e->getMessage());
         }
     }
 
@@ -175,8 +217,6 @@ class ProgresController extends Controller
     public function destroy($id)
     {
         $progres = Progres::findOrFail($id);
-        // Penghapusan file di Cloudinary memerlukan Public ID, 
-        // untuk sementara cukup hapus record database di Vercel.
         $progres->delete();
         return back()->with('success', 'Catatan progres berhasil dihapus!');
     }

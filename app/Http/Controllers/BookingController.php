@@ -9,9 +9,8 @@ use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http; // Wajib untuk upload API
 use Exception;
-// Library Cloudinary wajib ada
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class BookingController extends Controller
 {
@@ -61,7 +60,7 @@ class BookingController extends Controller
     }
 
     /**
-     * CUSTOMER - SIMPAN BOOKING (FIXED FOR VERCEL)
+     * CUSTOMER - SIMPAN BOOKING (Gaya HTTP Multipart untuk Vercel)
      */
     public function store(Request $request)
     {
@@ -85,12 +84,35 @@ class BookingController extends Controller
 
                 $pathKtp = null;
                 if ($request->hasFile('dokumen_ktp')) {
-                    // Upload ke Cloudinary menggunakan preset 'kedamark'
-                    $uploadedFile = Cloudinary::upload($request->file('dokumen_ktp')->getRealPath(), [
-                        'upload_preset' => 'kedamark', // Sesuai dashboard Cloudinary Anda
-                        'folder' => 'dokumen_booking'
-                    ]);
-                    $pathKtp = $uploadedFile->getSecurePath(); // Ambil URL HTTPS permanen
+                    $file = $request->file('dokumen_ktp');
+                    
+                    // Kirim request ke API Cloudinary secara manual
+                    $response = Http::asMultipart()->post(
+                        'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
+                        [
+                            [
+                                'name'     => 'file',
+                                'contents' => fopen($file->getRealPath(), 'r'),
+                                'filename' => $file->getClientOriginalName(),
+                            ],
+                            [
+                                'name'     => 'upload_preset',
+                                'contents' => 'kedamark',
+                            ],
+                            [
+                                'name'     => 'folder',
+                                'contents' => 'dokumen_booking'
+                            ],
+                        ]
+                    );
+
+                    $result = $response->json();
+
+                    if (isset($result['secure_url'])) {
+                        $pathKtp = $result['secure_url'];
+                    } else {
+                        throw new Exception('Gagal mengupload dokumen: ' . ($result['error']['message'] ?? 'Unknown error'));
+                    }
                 }
 
                 Booking::create([
@@ -99,18 +121,19 @@ class BookingController extends Controller
                     'project_id'      => $unit->project_id,
                     'unit_id'         => $unit->id,
                     'tanggal_booking' => $request->tanggal_booking,
-                    'dokumen'         => $pathKtp, // Simpan URL Cloudinary
+                    'dokumen'         => $pathKtp,
                     'keterangan'      => $request->keterangan,
                     'status'          => 'pending',
                 ]);
 
+                // Update status unit agar tidak bisa dipilih orang lain
                 $unit->update(['status' => 'Dibooking']);
 
                 return redirect()->route('customer.booking.index')
                     ->with('success', 'Booking berhasil! Silakan tunggu verifikasi admin.');
             });
         } catch (Exception $e) {
-            return redirect()->back()->with('error', $e->getMessage());
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
     }
 
@@ -147,21 +170,22 @@ class BookingController extends Controller
                         ['user_id' => $booking->user_id, 'type' => 'booking'],
                         [
                             'title'   => 'Booking Disetujui!',
-                            'message' => 'Selamat! Booking Anda untuk Unit ' . $unit->no_unit . ' di ' . $booking->unit->project->nama_proyek . ' telah disetujui.',
+                            'message' => 'Selamat! Booking Anda untuk Unit ' . $unit->no_unit . ' di ' . $unit->project->nama_proyek . ' telah disetujui.',
                             'is_read' => false,
                             'created_at' => now()
                         ]
                     );
                 } else {
+                    // Jika ditolak, kembalikan status unit ke 'Tersedia'
                     $unit->update(['status' => ($request->status == 'pending' ? 'Dibooking' : 'Tersedia')]);
                     Notification::where('user_id', $booking->user_id)->where('type', 'booking')->delete();
                 }
 
                 return redirect()->route('admin.booking.index')
-                    ->with('success', 'Status diperbarui.');
+                    ->with('success', 'Status booking berhasil diperbarui.');
             });
         } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 }

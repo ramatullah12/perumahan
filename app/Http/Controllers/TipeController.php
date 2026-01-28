@@ -5,8 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Tipe;
 use App\Models\Project;
 use Illuminate\Http\Request;
-// Library Cloudinary wajib ditambahkan
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
+use Illuminate\Support\Facades\Http; // Gunakan ini sebagai pengganti SDK Cloudinary
 
 class TipeController extends Controller
 {
@@ -27,7 +26,7 @@ class TipeController extends Controller
     }
 
     /**
-     * Menyimpan data tipe baru (FIXED FOR VERCEL)
+     * Menyimpan data tipe baru (Gaya HTTP Multipart untuk Vercel)
      */
     public function store(Request $request) {
         $validated = $request->validate([
@@ -42,14 +41,39 @@ class TipeController extends Controller
         ]);
 
         if ($request->hasFile('gambar')) {
-            // Upload ke Cloudinary menggunakan preset 'kedamark'
-            $uploadedFile = Cloudinary::upload($request->file('gambar')->getRealPath(), [
-                'upload_preset' => 'kedamark',
-                'folder' => 'tipes'
-            ]);
-            
-            // Simpan URL HTTPS dari Cloudinary ke database
-            $validated['gambar'] = $uploadedFile->getSecurePath();
+            try {
+                $file = $request->file('gambar');
+                
+                // Request langsung ke API Cloudinary
+                $response = Http::asMultipart()->post(
+                    'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
+                    [
+                        [
+                            'name'     => 'file',
+                            'contents' => fopen($file->getRealPath(), 'r'),
+                            'filename' => $file->getClientOriginalName(),
+                        ],
+                        [
+                            'name'     => 'upload_preset',
+                            'contents' => 'kedamark', // Preset Anda
+                        ],
+                        [
+                            'name'     => 'folder',
+                            'contents' => 'tipes',
+                        ],
+                    ]
+                );
+
+                $result = $response->json();
+
+                if (isset($result['secure_url'])) {
+                    $validated['gambar'] = $result['secure_url'];
+                } else {
+                    return back()->withInput()->withErrors(['gambar' => 'Cloudinary Error: ' . ($result['error']['message'] ?? 'Unknown error')]);
+                }
+            } catch (\Exception $e) {
+                return back()->withInput()->withErrors(['gambar' => 'Koneksi Cloudinary Gagal: ' . $e->getMessage()]);
+            }
         }
 
         Tipe::create($validated);
@@ -66,7 +90,7 @@ class TipeController extends Controller
     }
 
     /**
-     * Memperbarui data tipe (FIXED FOR VERCEL)
+     * Memperbarui data tipe (Gaya HTTP Multipart untuk Vercel)
      */
     public function update(Request $request, Tipe $tipe) {
         $validated = $request->validate([
@@ -81,16 +105,36 @@ class TipeController extends Controller
         ]);
 
         if ($request->hasFile('gambar')) {
-            // Upload gambar baru ke Cloudinary
-            $uploadedFile = Cloudinary::upload($request->file('gambar')->getRealPath(), [
-                'upload_preset' => 'kedamark',
-                'folder' => 'tipes'
-            ]);
-            
-            $validated['gambar'] = $uploadedFile->getSecurePath();
-            
-            // Catatan: Untuk Cloudinary, kita tidak perlu menghapus file lokal 
-            // karena file disimpan di cloud.
+            try {
+                $file = $request->file('gambar');
+                
+                $response = Http::asMultipart()->post(
+                    'https://api.cloudinary.com/v1_1/' . env('CLOUDINARY_CLOUD_NAME') . '/image/upload',
+                    [
+                        [
+                            'name'     => 'file',
+                            'contents' => fopen($file->getRealPath(), 'r'),
+                            'filename' => $file->getClientOriginalName(),
+                        ],
+                        [
+                            'name'     => 'upload_preset',
+                            'contents' => 'kedamark',
+                        ],
+                        [
+                            'name'     => 'folder',
+                            'contents' => 'tipes',
+                        ],
+                    ]
+                );
+
+                $result = $response->json();
+                
+                if (isset($result['secure_url'])) {
+                    $validated['gambar'] = $result['secure_url'];
+                }
+            } catch (\Exception $e) {
+                return back()->withInput()->withErrors(['gambar' => 'Cloudinary Error: ' . $e->getMessage()]);
+            }
         }
 
         $tipe->update($validated);
@@ -102,9 +146,7 @@ class TipeController extends Controller
      * Menghapus data tipe
      */
     public function destroy(Tipe $tipe) {
-        // Hapus record dari database
         $tipe->delete();
-
         return redirect()->route('admin.tipe.index')->with('success', 'Tipe Berhasil Dihapus!');
     }
 }
