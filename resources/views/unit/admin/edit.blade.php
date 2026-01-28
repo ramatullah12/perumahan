@@ -3,6 +3,13 @@
 @section('content')
 <div class="p-4 md:p-8 bg-[#F8FAFC] min-h-screen">
     <div class="max-w-3xl mx-auto">
+        {{-- Pesan Alert Global --}}
+        @if(session('error'))
+            <div class="mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-xl shadow-sm">
+                {{ session('error') }}
+            </div>
+        @endif
+
         {{-- Navigation & Header --}}
         <div class="mb-8 flex items-center justify-between">
             <a href="{{ route('admin.unit.index') }}" class="group flex items-center text-slate-400 hover:text-blue-600 transition-all">
@@ -18,7 +25,6 @@
         </div>
 
         <div class="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-            {{-- Form Header --}}
             <div class="p-10 border-b border-slate-50 bg-slate-50/30 flex items-start justify-between">
                 <div class="space-y-1">
                     <h2 class="text-3xl font-black text-slate-800 tracking-tighter">Edit Detil Unit</h2>
@@ -41,7 +47,7 @@
                             <select name="project_id" id="project_select_edit" required 
                                     class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer appearance-none shadow-inner">
                                 @foreach($projects as $project)
-                                    <option value="{{ $project->id }}" {{ $unit->project_id == $project->id ? 'selected' : '' }}>
+                                    <option value="{{ $project->id }}" {{ old('project_id', $unit->project_id) == $project->id ? 'selected' : '' }}>
                                         {{ $project->nama_proyek }}
                                     </option>
                                 @endforeach
@@ -57,7 +63,7 @@
                             <select name="tipe_id" id="tipe_select_edit" required 
                                     class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer appearance-none shadow-inner">
                                 @foreach($tipes as $tipe)
-                                    <option value="{{ $tipe->id }}" {{ $unit->tipe_id == $tipe->id ? 'selected' : '' }}>
+                                    <option value="{{ $tipe->id }}" {{ old('tipe_id', $unit->tipe_id) == $tipe->id ? 'selected' : '' }}>
                                         Tipe {{ $tipe->nama_tipe }}
                                     </option>
                                 @endforeach
@@ -71,13 +77,14 @@
                         <div class="space-y-3">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-center block">Blok</label>
                             <input type="text" name="block" value="{{ old('block', $unit->block) }}" required 
-                                   class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-center text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-inner">
+                                   class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-center text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-inner @error('block') ring-2 ring-red-500 @enderror">
                         </div>
                         <div class="space-y-3">
                             <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 text-center block">No. Unit</label>
                             <input type="text" name="no_unit" value="{{ old('no_unit', $unit->no_unit) }}" required 
-                                   class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-center text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-inner">
+                                   class="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm font-black text-center text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-inner @error('no_unit') ring-2 ring-red-500 @enderror">
                         </div>
+                        @error('no_unit') <p class="col-span-2 text-[10px] text-red-500 font-bold ml-1 italic">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Harga Unit --}}
@@ -101,7 +108,6 @@
                             <input type="range" name="progres" value="{{ old('progres', $unit->progres) }}" required min="0" max="100" id="prog-range"
                                    class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500">
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-3 italic text-center font-medium uppercase tracking-tighter">Geser slider untuk memperbarui persentase pembangunan di dashboard utama.</p>
                     </div>
 
                     {{-- Status Unit --}}
@@ -110,12 +116,12 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             @foreach(['Tersedia', 'Dibooking', 'Terjual'] as $status)
                             <label class="relative cursor-pointer group">
-                                <input type="radio" name="status" value="{{ $status }}" class="hidden peer" {{ $unit->status == $status ? 'checked' : '' }}>
+                                <input type="radio" name="status" value="{{ $status }}" class="hidden peer" {{ old('status', $unit->status) == $status ? 'checked' : '' }}>
                                 <div class="p-5 rounded-[1.5rem] bg-white border-2 border-slate-50 text-center transition-all peer-checked:border-blue-500 peer-checked:bg-blue-50 group-hover:border-slate-200">
                                     <div class="flex flex-col items-center">
                                         <i class="fas {{ $status == 'Tersedia' ? 'fa-check-circle' : ($status == 'Dibooking' ? 'fa-clock' : 'fa-handshake') }} 
-                                           mb-2 text-lg {{ $unit->status == $status ? 'text-blue-600' : 'text-slate-300' }} peer-checked:text-blue-600"></i>
-                                        <span class="font-black text-[11px] uppercase tracking-widest {{ $unit->status == $status ? 'text-blue-700' : 'text-slate-400' }} peer-checked:text-blue-700">
+                                            mb-2 text-lg text-slate-300 peer-checked:text-blue-600 transition-colors"></i>
+                                        <span class="font-black text-[11px] uppercase tracking-widest text-slate-400 peer-checked:text-blue-700 transition-colors">
                                             {{ $status }}
                                         </span>
                                     </div>
@@ -129,7 +135,6 @@
                     </div>
                 </div>
 
-                {{-- Submission --}}
                 <div class="pt-10 flex flex-col md:flex-row gap-4">
                     <button type="submit" class="flex-1 bg-blue-600 text-white p-6 rounded-[2rem] font-black uppercase tracking-widest text-[11px] shadow-2xl shadow-blue-100 hover:bg-blue-700 hover:-translate-y-1 transition-all active:scale-95">
                         <i class="fas fa-save mr-2"></i> Konfirmasi Perubahan
@@ -145,32 +150,44 @@
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    // Live Progress Update
-    $('#prog-range').on('input', function() {
-        $('#prog-val').text($(this).val() + '%');
-    });
+    $(document).ready(function() {
+        // Live Progress Update
+        $('#prog-range').on('input', function() {
+            $('#prog-val').text($(this).val() + '%');
+        });
 
-    // Dynamic Type Selection
-    $('#project_select_edit').on('change', function() {
-        let projectId = $(this).val();
-        let tipeSelect = $('#tipe_select_edit');
-        tipeSelect.empty().append('<option value="">Memuat...</option>').addClass('opacity-50');
+        // Dynamic Type Selection
+        $('#project_select_edit').on('change', function() {
+            let projectId = $(this).val();
+            let tipeSelect = $('#tipe_select_edit');
+            
+            // Tampilkan loading
+            tipeSelect.empty().append('<option value="">Memuat tipe...</option>').addClass('opacity-50');
 
-        if (projectId) {
-            $.ajax({
-                url: '/admin/get-tipe/' + projectId,
-                type: 'GET',
-                success: function(data) {
-                    tipeSelect.removeClass('opacity-50').empty().append('<option value="">-- Pilih Tipe --</option>');
-                    $.each(data, function(key, value) {
-                        tipeSelect.append('<option value="' + value.id + '">Tipe ' + value.nama_tipe + '</option>');
-                    });
-                },
-                error: function() {
-                    tipeSelect.removeClass('opacity-50').empty().append('<option value="">Gagal sinkronisasi data</option>');
-                }
-            });
-        }
+            if (projectId) {
+                $.ajax({
+                    url: '/admin/get-tipe/' + projectId,
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        tipeSelect.removeClass('opacity-50').empty();
+                        tipeSelect.append('<option value="">-- Pilih Tipe --</option>');
+                        
+                        if(data.length > 0) {
+                            $.each(data, function(key, value) {
+                                tipeSelect.append('<option value="' + value.id + '">Tipe ' + value.nama_tipe + '</option>');
+                            });
+                        } else {
+                            tipeSelect.append('<option value="">Tipe tidak tersedia untuk proyek ini</option>');
+                        }
+                    },
+                    error: function(xhr) {
+                        console.error(xhr.responseText);
+                        tipeSelect.removeClass('opacity-50').empty().append('<option value="">Gagal mengambil data</option>');
+                    }
+                });
+            }
+        });
     });
 </script>
 @endsection

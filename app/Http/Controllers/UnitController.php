@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Unit;
 use App\Models\Project;
-use App\Models\Tipe;
+use App\Models\Tipe; // Pastikan menggunakan T kapital sesuai standar Laravel
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +19,6 @@ class UnitController extends Controller
     {
         $project = Project::find($projectId);
         if ($project) {
-            // Menghitung ulang jumlah unit berdasarkan status secara agregat
             $stats = Unit::where('project_id', $projectId)
                 ->selectRaw("
                     count(case when status = 'Tersedia' then 1 end) as tersedia,
@@ -42,8 +41,6 @@ class UnitController extends Controller
     public function index(Request $request)
     {
         $projects = Project::orderBy('nama_proyek')->get();
-        
-        // Eager loading tipe dan project untuk menghindari N+1 query
         $query = Unit::with(['project', 'tipe']);
 
         if ($request->filled('project_id')) {
@@ -56,6 +53,19 @@ class UnitController extends Controller
 
         $units = $query->latest()->get(); 
         return view('unit.admin.index', compact('units', 'projects'));
+    }
+
+    /**
+     * ADMIN - HALAMAN EDIT UNIT
+     * Menambahkan fungsi yang sebelumnya menyebabkan error "Undefined method edit"
+     */
+    public function edit(Unit $unit)
+    {
+        $projects = Project::orderBy('nama_proyek')->get();
+        // Mengambil tipe yang hanya tersedia untuk proyek unit tersebut
+        $tipes = Tipe::where('project_id', $unit->project_id)->get();
+
+        return view('unit.admin.edit', compact('unit', 'projects', 'tipes'));
     }
 
     /**
@@ -83,7 +93,6 @@ class UnitController extends Controller
             DB::transaction(function () use ($validated, $request) {
                 $validated['progres'] = 0; 
                 Unit::create($validated);
-                
                 $this->syncProjectStock($request->project_id);
             });
 
@@ -159,6 +168,7 @@ class UnitController extends Controller
 
     /**
      * AJAX - AMBIL TIPE BERDASARKAN PROYEK
+     * Nama fungsi ini disesuaikan agar cocok dengan script AJAX di Blade Anda
      */
     public function getTipeByProject($projectId)
     {
