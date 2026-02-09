@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+// Tambahkan import di bawah ini agar class Tipe dikenali
+use App\Models\Tipe; 
 
 class Unit extends Model
 {
@@ -36,7 +38,8 @@ class Unit extends Model
      */
     public function tipe(): BelongsTo
     {
-        return $this->belongsTo(tipe::class, 'tipe_id');
+        // PERBAIKAN: Ubah 'tipe::class' menjadi 'Tipe::class' (Huruf T Besar)
+        return $this->belongsTo(Tipe::class, 'tipe_id');
     }
 
     /**
@@ -76,6 +79,7 @@ class Unit extends Model
      */
     public function getDetailUnitAttribute(): string
     {
+        // Tambahkan pengecekan null safety agar tidak error jika relasi tipe kosong
         $namaTipe = $this->tipe->nama_tipe ?? 'Tanpa Tipe';
         $hargaFormatted = number_format($this->harga, 0, ',', '.');
         return "{$this->nama_unit} - {$namaTipe} (Rp {$hargaFormatted})";
