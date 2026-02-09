@@ -4,7 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany; // Tambahkan ini
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Tipe; // <--- TAMBAHKAN INI agar class Tipe terbaca
 
 class Project extends Model
 {
@@ -23,12 +24,11 @@ class Project extends Model
     ];
 
     /**
-     * PENTING: Relasi ke Tipe (One to Many)
-     * Ini memperbaiki error RelationNotFoundException
+     * Relasi ke Tipe (One to Many)
      */
     public function tipes(): HasMany
     {
-        // Pastikan nama file model Anda adalah tipe.php (huruf kecil)
+        // Gunakan Tipe::class dengan T kapital
         return $this->hasMany(Tipe::class, 'project_id');
     }
 
